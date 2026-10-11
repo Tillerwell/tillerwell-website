@@ -684,8 +684,36 @@ a:hover {
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
-.admin-bell-dropdown-title {
+.admin-bell-dropdown-titlegroup {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.admin-bell-dropdown-alerttoggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text);
+  padding: 0.2rem;
+  border-radius: var(--radius-sm, 4px);
+  transition: color var(--dur-base);
+}
+.admin-bell-dropdown-alerttoggle[aria-pressed="false"] {
+  color: var(--color-text-muted);
+}
+.admin-bell-dropdown-alerttoggle:hover:not(:disabled) {
+  color: var(--color-text);
+}
+.admin-bell-dropdown-alerttoggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.admin-bell-dropdown-title {
   min-width: 0;
   font-size: 0.8125rem;
   font-weight: var(--font-semibold);

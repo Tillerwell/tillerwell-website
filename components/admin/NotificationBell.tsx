@@ -605,7 +605,34 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       aria-label="Notifications"
     >
       <div className="admin-bell-dropdown-header">
-        <span className="admin-bell-dropdown-title">Notifications</span>
+        <div className="admin-bell-dropdown-titlegroup">
+          <span className="admin-bell-dropdown-title">Notifications</span>
+          {desktopSupported && (() => {
+            const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied'
+            const label = desktopAlerts
+              ? 'Stop nudging me when a notification arrives'
+              : blocked
+                ? 'Desktop alerts are blocked in this browser'
+                : 'Nudge me when a notification arrives'
+            return (
+              <button
+                type="button"
+                className="admin-bell-dropdown-alerttoggle"
+                aria-pressed={desktopAlerts}
+                title={label}
+                aria-label={label}
+                disabled={blocked && !desktopAlerts}
+                onClick={toggleDesktopAlerts}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9Z" />
+                  <path d="M10 18a2 2 0 0 0 4 0" />
+                  {!desktopAlerts && <path d="M4 4l16 16" />}
+                </svg>
+              </button>
+            )
+          })()}
+        </div>
         {notifications !== null && notifications.length > 0 && (
           <div className="admin-bell-dropdown-header-actions">
             <button
@@ -629,17 +656,6 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           </div>
         )}
       </div>
-      {desktopSupported && (
-        <div className="admin-bell-dropdown-header-actions">
-          <button type="button" className="admin-bell-dropdown-headaction" onClick={toggleDesktopAlerts}>
-            {desktopAlerts
-              ? 'Desktop alerts on - turn off'
-              : typeof Notification !== 'undefined' && Notification.permission === 'denied'
-                ? 'Desktop alerts blocked in this browser'
-                : 'Turn on desktop alerts'}
-          </button>
-        </div>
-      )}
       {actionError[BULK_ACTION_ID] && (
         <p className="admin-bell-dropdown-action-error admin-bell-dropdown-bulk-error">{actionError[BULK_ACTION_ID]}</p>
       )}
