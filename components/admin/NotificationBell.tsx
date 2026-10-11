@@ -49,6 +49,35 @@ type Notification = {
 // front. Every open admin tab polls, so this is deliberately unhurried.
 const POLL_INTERVAL_MS = 60_000
 
+// Desktop (browser) alerts are a per-browser choice, kept in this browser: the
+// permission itself is granted per browser per site, so a database row saying
+// "on" would describe nothing about the Chrome in front of somebody.
+const DESKTOP_ALERTS_KEY = 'cactus-bell-desktop-alerts'
+
+function desktopAlertsOn(): boolean {
+  try {
+    return typeof Notification !== 'undefined'
+      && Notification.permission === 'granted'
+      && window.localStorage.getItem(DESKTOP_ALERTS_KEY) === 'on'
+  } catch {
+    return false
+  }
+}
+
+const desktopAlertListeners = new Set<() => void>()
+function subscribeDesktopAlerts(listener: () => void): () => void {
+  desktopAlertListeners.add(listener)
+  return () => { desktopAlertListeners.delete(listener) }
+}
+
+// Only 'message' notifications are announced to the desktop: something has
+// arrived for a person (an order, a form message). Deploys, updates and the
+// ticking progress of a video job are all visible in the bell and would be
+// noise as pop-ups.
+function announceable(n: Notification): boolean {
+  return n.type === 'message' && n.readAt === null
+}
+
 // Sentinel key for the whole-list actions in the same loading/error maps the
 // per-notification buttons use. No notification id can collide with it.
 const BULK_ACTION_ID = '__bulk__'
@@ -276,6 +305,12 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   const deployStatus = useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
   const uploads = useSyncExternalStore(subscribeUploads, getUploadSnapshot, getServerUploadSnapshot)
   const activeUploads = uploads.active
+  // Ids already seen (and, once alerts are on, announced) by this tab. Null
+  // until the first fetch, which only seeds it, so opening the admin never
+  // pops up everything that was already waiting.
+  const seenIds = useRef<Set<string> | null>(null)
+  const desktopAlerts = useSyncExternalStore(subscribeDesktopAlerts, desktopAlertsOn, () => false)
+  const desktopSupported = useSyncExternalStore(() => () => {}, () => typeof Notification !== 'undefined', () => false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -344,8 +379,28 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
         .then(data => {
           setCount(data.unreadCount ?? 0)
           if (open) setNotifications(data.notifications ?? [])
+          announceNew((data.notifications ?? []) as Notification[])
         })
         .catch(() => {})
+    }
+
+    const announceNew = (list: Notification[]) => {
+      const seen = seenIds.current
+      seenIds.current = new Set(list.map(n => n.id))
+      if (seen === null || !desktopAlertsOn()) return
+      for (const n of list) {
+        if (seen.has(n.id) || !announceable(n)) continue
+        try {
+          const popup = new window.Notification(n.title, { tag: n.id })
+          popup.onclick = () => {
+            window.focus()
+            if (n.link) router.push(n.link.startsWith('/') ? `${base}${n.link}` : n.link)
+            popup.close()
+          }
+        } catch {
+          // Some browsers refuse the constructor (Android Chrome); nothing to do.
+        }
+      }
     }
 
     const start = () => {
@@ -362,18 +417,39 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       if (document.visibilityState === 'visible') {
         poll()
         start()
-      } else {
+      } else if (!desktopAlertsOn()) {
         stop()
       }
     }
 
-    if (document.visibilityState === 'visible') start()
+    // Seeds the seen list, so the first real poll has something to compare to.
+    poll()
+    // With desktop alerts on the tab keeps asking while it is behind another -
+    // that is the whole point of them. The browser slows a hidden tab's timers
+    // by itself, so this is about one request a minute.
+    if (document.visibilityState === 'visible' || desktopAlertsOn()) start()
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       stop()
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [open])
+  }, [open, router, base])
+
+  const toggleDesktopAlerts = useCallback(async () => {
+    if (typeof Notification === 'undefined') return
+    try {
+      if (desktopAlertsOn()) {
+        window.localStorage.setItem(DESKTOP_ALERTS_KEY, 'off')
+        desktopAlertListeners.forEach(l => l())
+        return
+      }
+      const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+      if (permission === 'granted') window.localStorage.setItem(DESKTOP_ALERTS_KEY, 'on')
+    } catch {
+      // Storage or the permission prompt refused; the button stays as it was.
+    }
+    desktopAlertListeners.forEach(l => l())
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -553,6 +629,17 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           </div>
         )}
       </div>
+      {desktopSupported && (
+        <div className="admin-bell-dropdown-header-actions">
+          <button type="button" className="admin-bell-dropdown-headaction" onClick={toggleDesktopAlerts}>
+            {desktopAlerts
+              ? 'Desktop alerts on - turn off'
+              : typeof Notification !== 'undefined' && Notification.permission === 'denied'
+                ? 'Desktop alerts blocked in this browser'
+                : 'Turn on desktop alerts'}
+          </button>
+        </div>
+      )}
       {actionError[BULK_ACTION_ID] && (
         <p className="admin-bell-dropdown-action-error admin-bell-dropdown-bulk-error">{actionError[BULK_ACTION_ID]}</p>
       )}

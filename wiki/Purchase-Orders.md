@@ -348,6 +348,24 @@ A draft is yours to change as you like. **Once an order has gone to the supplier
 
 Only a draft can be deleted. Anything that has been out into the world gets cancelled instead, so the number and the trail survive. Cancel one the supplier has actually been sent and they are emailed about it, because a supplier who never hears is a supplier who delivers it anyway.
 
+**Telling the customer.** The first time an order raised for a customer's order goes to the supplier, whether emailed or marked as sent without emailing, Purchase Orders announces it to other modules (see below). With the Shop installed, that moves the customer's order from **Processing** to **Preparing** and emails them. An amendment, or marking an already-sent order as sent again, announces nothing.
+
+### For module authors: `purchase-orders.sent`
+
+An observer extension point, modelled on `purchase-orders.despatch-recorded`. Fired once, for the first send of a purchase order, with primitives only so nothing imports this module:
+
+```json
+{
+  "point": "purchase-orders.sent",
+  "id": "your-observer-id",
+  "serverOnly": true,
+  "import": "./lib/your-observer",
+  "component": "yourObserver"
+}
+```
+
+The function receives `{ purchaseOrderNumber: string, source: { module: 'shop', orderId: string } | null }`. `source` is null for an order raised by hand or by a reorder run. It never fails the send: a throwing observer is logged and the next one still runs. Be idempotent.
+
 ---
 
 ## Checking goods in
