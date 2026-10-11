@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.488"
+      "version": "v0.1.489"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.201"
+      "version": "v0.1.202"
     },
     {
       "name": "product-addons-for-shop",
@@ -23,12 +23,12 @@
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.75"
+      "version": "v0.1.76"
     },
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.32"
+      "version": "v0.1.33"
     },
     {
       "name": "stock-import-for-shop",
@@ -43,22 +43,22 @@
     {
       "name": "product-downloads-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-downloads-for-shop",
-      "version": "v0.1.9"
+      "version": "v0.1.10"
     },
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.63"
+      "version": "v0.1.64"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.81"
+      "version": "v0.1.82"
     },
     {
       "name": "product-discovery-tool",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-discovery-tool",
-      "version": "v0.1.20"
+      "version": "v0.1.21"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
@@ -78,12 +78,12 @@
     {
       "name": "advanced-shipping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/advanced-shipping-for-shop",
-      "version": "v0.1.57"
+      "version": "v0.1.58"
     },
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.39"
+      "version": "v0.1.40"
     },
     {
       "name": "abandoned-carts-for-shop",
@@ -93,7 +93,7 @@
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.42"
+      "version": "v0.1.43"
     },
     {
       "name": "modular-configurator-for-shop",
@@ -108,22 +108,22 @@
     {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.20"
+      "version": "v0.1.21"
     },
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.27"
+      "version": "v0.1.28"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.36"
+      "version": "v0.1.37"
     },
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.46"
+      "version": "v0.1.47"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -148,12 +148,12 @@
     {
       "name": "live-chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot",
-      "version": "v0.1.40"
+      "version": "v0.1.41"
     },
     {
       "name": "uk-bookkeeping",
       "repoUrl": "https://github.com/cactus-foundation-modules/uk-bookkeeping",
-      "version": "v0.2.48"
+      "version": "v0.2.49"
     },
     {
       "name": "google-tag",
@@ -163,12 +163,12 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.53"
+      "version": "v0.1.54"
     },
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.121"
+      "version": "v0.1.122"
     },
     {
       "name": "google-ai-studio",
