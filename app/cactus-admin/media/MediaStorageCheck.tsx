@@ -13,6 +13,7 @@ import type {
   AdoptClaimedResult,
   DeleteOrphansResult,
 } from '@/lib/media/reconcile'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 // Storage check. Every other figure on this page is counted from the library's
 // own records, so it can only ever agree with itself; this is the one thing that
@@ -76,6 +77,7 @@ function targetsOf(list: { provider: StorageTarget['provider']; key: string }[])
 
 export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete: boolean; canUpload: boolean }) {
   const [state, setState] = useState<'idle' | 'scanning' | 'working'>('idle')
+  const [askConfirm, confirmNode] = useAdminConfirm()
   const [result, setResult] = useState<StorageReconcile | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -194,6 +196,7 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
         borderRadius: 'var(--radius-md)',
       }}
     >
+      {confirmNode}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>Storage check</h2>
@@ -232,10 +235,11 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                 ? {
                     label: state === 'working' ? 'Deleting…' : 'Delete all leftovers',
                     danger: true,
-                    onClick: () => {
-                      const ok = window.confirm(
-                        `Permanently delete ${result.orphaned.length} leftover file${result.orphaned.length === 1 ? '' : 's'} from storage, freeing ${formatBytes(result.orphanedBytes)}?\n\nNothing in this library points at them and nothing on the site is using them. This cannot be undone from here.`
-                      )
+                    onClick: async () => {
+                      const ok = await askConfirm({
+                        title: `Permanently delete ${result.orphaned.length} leftover file${result.orphaned.length === 1 ? '' : 's'} from storage, freeing ${formatBytes(result.orphanedBytes)}?`,
+                        message: 'Nothing in this library points at them and nothing on the site is using them. This cannot be undone from here.',
+                      })
                       if (ok) void post('delete-orphans', targetsOf(result.orphaned))
                     },
                   }
@@ -257,10 +261,13 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                 ? {
                     label: state === 'working' ? 'Adding…' : 'Add these to the library',
                     danger: false,
-                    onClick: () => {
-                      const ok = window.confirm(
-                        `Add ${result.claimed.length} file${result.claimed.length === 1 ? '' : 's'} to this library?\n\nNothing is moved, copied or changed - each one gets the entry it should have had, filed where its address already says it lives. They will then show up in the library and count towards your storage total.`
-                      )
+                    onClick: async () => {
+                      const ok = await askConfirm({
+                        title: `Add ${result.claimed.length} file${result.claimed.length === 1 ? '' : 's'} to this library?`,
+                        message: 'Nothing is moved, copied or changed - each one gets the entry it should have had, filed where its address already says it lives. They will then show up in the library and count towards your storage total.',
+                        confirmLabel: 'Add them',
+                        danger: false,
+                      })
                       if (ok) void post('adopt-claimed', targetsOf(result.claimed))
                     },
                   }
@@ -304,10 +311,12 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                 ? {
                     label: state === 'working' ? 'Removing…' : 'Remove these entries',
                     danger: true,
-                    onClick: () => {
-                      const ok = window.confirm(
-                        `Remove ${result.missing.length} entr${result.missing.length === 1 ? 'y' : 'ies'} from this library?\n\nTheir files are already gone from storage, so nothing is deleted from storage here - this only clears the entries pointing at them. Anything still used on a page will be listed rather than removed.`
-                      )
+                    onClick: async () => {
+                      const ok = await askConfirm({
+                        title: `Remove ${result.missing.length} entr${result.missing.length === 1 ? 'y' : 'ies'} from this library?`,
+                        message: 'Their files are already gone from storage, so nothing is deleted from storage here - this only clears the entries pointing at them. Anything still used on a page will be listed rather than removed.',
+                        confirmLabel: 'Remove',
+                      })
                       if (ok) void post('purge-missing', targetsOf(result.missing))
                     },
                   }
@@ -344,10 +353,12 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                   type="button"
                   disabled={busy}
                   style={buttonStyle(true)}
-                  onClick={() => {
-                    const ok = window.confirm(
-                      `Remove ${blocked.length} entr${blocked.length === 1 ? 'y' : 'ies'} anyway?\n\nWherever they are used will be left with nothing in that spot, so it is worth putting something else there afterwards.`
-                    )
+                  onClick={async () => {
+                    const ok = await askConfirm({
+                      title: `Remove ${blocked.length} entr${blocked.length === 1 ? 'y' : 'ies'} anyway?`,
+                      message: 'Wherever they are used will be left with nothing in that spot, so it is worth putting something else there afterwards.',
+                      confirmLabel: 'Remove anyway',
+                    })
                     if (ok) void post('purge-missing', targetsOf(blocked), true)
                   }}
                 >

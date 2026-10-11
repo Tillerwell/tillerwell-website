@@ -12,6 +12,7 @@ import { ColourPickerRow } from '@/components/admin/ColourPickerRow'
 import { BrandingTab, useBrandingState } from './BrandingTab'
 import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
 import { POPULAR_FONTS, MAX_FONT_SEARCH_RESULTS } from '@/lib/design/font-options'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 const FONT_WEIGHT_OPTIONS = [
   { value: '100', label: '100 - Thin' },
@@ -62,6 +63,7 @@ function matchesColourSnapshot(
 export default function StylesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [askConfirm, confirmNode] = useAdminConfirm()
   const [tokens, setTokens] = useState<DesignTokens>(DEFAULT_DESIGN_TOKENS)
   const [activeTab, setActiveTab] = useState<StyleTab>(
     STYLE_TABS.includes(searchParams.get('tab') as StyleTab) ? (searchParams.get('tab') as StyleTab) : 'branding'
@@ -209,8 +211,13 @@ export default function StylesPage() {
     else setPendingHref(null) // save failed - stay put so the error toast is visible
   }, [pendingHref, handleSave, branding, router, setPendingHref, dirtyRef])
 
-  const handleApplyPreset = useCallback((preset: Omit<ColourPreset, 'id'> & { name: string }) => {
-    if (dirtyRef.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved colour changes will be replaced.`)) return
+  const handleApplyPreset = useCallback(async (preset: Omit<ColourPreset, 'id'> & { name: string }) => {
+    if (dirtyRef.current && !(await askConfirm({
+      title: `Apply the "${preset.name}" preset?`,
+      message: 'Your unsaved colour changes will be replaced.',
+      confirmLabel: 'Apply',
+      danger: false,
+    }))) return
     setTokens(t => {
       const hasPrimary = t.designSystem.colours.some(c => c.id === 'primary')
       return {
@@ -231,7 +238,7 @@ export default function StylesPage() {
     })
     dirtyRef.current = false
     setSaved(false)
-  }, [dirtyRef])
+  }, [dirtyRef, askConfirm])
 
   const openSavePresetModal = useCallback(() => {
     setPresetNameInput('')
@@ -259,7 +266,12 @@ export default function StylesPage() {
 
   const handleUpdatePreset = useCallback(async (preset: { id: string; name: string }) => {
     if (!currentColourSnapshot) return
-    if (!confirm(`Update "${preset.name}" with your current colours?`)) return
+    if (!(await askConfirm({
+      title: `Update "${preset.name}"?`,
+      message: 'It will be saved with your current colours in place of its own.',
+      confirmLabel: 'Update',
+      danger: false,
+    }))) return
     try {
       const res = await fetch(`/api/admin/appearance/presets/${preset.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -269,16 +281,16 @@ export default function StylesPage() {
       if (!res.ok) { setError(d.error ?? 'Failed to update preset'); return }
       setUserPresets(ps => ps.map(p => p.id === preset.id ? d : p))
     } catch { setError('Failed to update preset') }
-  }, [currentColourSnapshot])
+  }, [currentColourSnapshot, askConfirm])
 
   const handleDeletePreset = useCallback(async (preset: { id: string; name: string }) => {
-    if (!confirm(`Delete the "${preset.name}" preset? This can't be undone.`)) return
+    if (!(await askConfirm({ title: `Delete the "${preset.name}" preset?`, message: 'This can\'t be undone.' }))) return
     try {
       const res = await fetch(`/api/admin/appearance/presets/${preset.id}`, { method: 'DELETE' })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to delete preset'); return }
       setUserPresets(ps => ps.filter(p => p.id !== preset.id))
     } catch { setError('Failed to delete preset') }
-  }, [])
+  },[askConfirm])
 
   const setDsColours = (colours: GlobalColour[]) => {
     dirtyRef.current = true
@@ -404,6 +416,7 @@ export default function StylesPage() {
 
   return (
     <div>
+      {confirmNode}
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       <div className="page-header">
         <h1 className="page-title">Appearance</h1>

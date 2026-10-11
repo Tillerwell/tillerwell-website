@@ -23,6 +23,7 @@ import SeoTab from '@/lib/puck/tabs/SeoTab'
 import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 import OutlineTree from '@/lib/puck/outline/OutlineTree'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 // Hands the real sidebar field widgets to the registry that config.tsx renders through.
 // Must run before Puck renders a field, hence module scope rather than an effect.
@@ -51,6 +52,7 @@ type HistoryVersion = {
 
 export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus, hasUnpublishedDraft, backHref, onDeleteClick, deleting }: Props) {
   const [saving, setSaving] = useState(false)
+  const [askConfirm, confirmNode] = useAdminConfirm()
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [publishError, setPublishError] = useState('')
@@ -343,7 +345,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
       const restoredData = d.data as Data
 
-      if (!confirm('Load this version into the editor? Your current unsaved changes will be replaced.')) {
+      if (!(await askConfirm({ title: 'Load this version into the editor?', message: 'Your current unsaved changes will be replaced.', confirmLabel: 'Load it', danger: false }))) {
         setRestoringIndex(null)
         return
       }
@@ -360,7 +362,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     } finally {
       setRestoringIndex(null)
     }
-  }, [pageId, doAutosave])
+  }, [pageId, doAutosave, askConfirm])
 
   const puckViewports = useMemo(() => buildPuckViewports(designTokens), [designTokens])
 
@@ -431,6 +433,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   return (
     <EditorDirtyProvider value={dirtyState}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {confirmNode}
         {/* Puck editor — takes remaining height */}
         <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
           {canvasReady && tokensReady && (

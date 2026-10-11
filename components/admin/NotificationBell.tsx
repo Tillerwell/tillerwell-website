@@ -5,6 +5,10 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DeployStatusLive from './DeployStatusLive'
+import { AdminTooltip } from './Tooltip'
+import { useAdminConfirm } from './useAdminConfirm'
+import { DesktopAlertsToggle, desktopAlertsOn } from './DesktopAlertsToggle'
+import { DeleteAllIcon, MarkAllReadIcon } from './notification-icons'
 import VideoJobProgress from './VideoJobProgress'
 import { parseVideoJobNotification } from '@/lib/media/video-job-notification'
 import {
@@ -48,27 +52,6 @@ type Notification = {
 // How often the bell asks the server for new notifications while the tab is in
 // front. Every open admin tab polls, so this is deliberately unhurried.
 const POLL_INTERVAL_MS = 60_000
-
-// Desktop (browser) alerts are a per-browser choice, kept in this browser: the
-// permission itself is granted per browser per site, so a database row saying
-// "on" would describe nothing about the Chrome in front of somebody.
-const DESKTOP_ALERTS_KEY = 'cactus-bell-desktop-alerts'
-
-function desktopAlertsOn(): boolean {
-  try {
-    return typeof Notification !== 'undefined'
-      && Notification.permission === 'granted'
-      && window.localStorage.getItem(DESKTOP_ALERTS_KEY) === 'on'
-  } catch {
-    return false
-  }
-}
-
-const desktopAlertListeners = new Set<() => void>()
-function subscribeDesktopAlerts(listener: () => void): () => void {
-  desktopAlertListeners.add(listener)
-  return () => { desktopAlertListeners.delete(listener) }
-}
 
 // Only 'message' notifications are announced to the desktop: something has
 // arrived for a person (an order, a form message). Deploys, updates and the
@@ -309,10 +292,11 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   // until the first fetch, which only seeds it, so opening the admin never
   // pops up everything that was already waiting.
   const seenIds = useRef<Set<string> | null>(null)
-  const desktopAlerts = useSyncExternalStore(subscribeDesktopAlerts, desktopAlertsOn, () => false)
-  const desktopSupported = useSyncExternalStore(() => () => {}, () => typeof Notification !== 'undefined', () => false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  // Inline: the dropdown shuts on a press outside itself, and the dialog has
+  // to count as inside.
+  const [askConfirm, confirmNode] = useAdminConfirm({ inline: true })
 
   const base = `/${adminPath}`
   const href = `${base}/notifications`
@@ -335,7 +319,11 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   const openDropdown = useCallback(() => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
-      setPos({ top: rect.top, left: rect.right + 8 })
+      // On a phone the sidebar is a drawer as wide as most of the screen, and
+      // opening to its right put the panel off the edge of it. There it opens
+      // over the drawer instead, under the bell, inset from the left.
+      if (window.matchMedia('(max-width: 768px)').matches) setPos({ top: rect.bottom + 8, left: 8 })
+      else setPos({ top: rect.top, left: rect.right + 8 })
     }
     setOpen(true)
   }, [])
@@ -434,22 +422,6 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [open, router, base])
-
-  const toggleDesktopAlerts = useCallback(async () => {
-    if (typeof Notification === 'undefined') return
-    try {
-      if (desktopAlertsOn()) {
-        window.localStorage.setItem(DESKTOP_ALERTS_KEY, 'off')
-        desktopAlertListeners.forEach(l => l())
-        return
-      }
-      const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
-      if (permission === 'granted') window.localStorage.setItem(DESKTOP_ALERTS_KEY, 'on')
-    } catch {
-      // Storage or the permission prompt refused; the button stays as it was.
-    }
-    desktopAlertListeners.forEach(l => l())
-  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -557,7 +529,11 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   }
 
   async function handleDeleteAll() {
-    if (!confirm('Delete every notification? Changes still awaiting deployment are kept. This cannot be undone.')) return
+    if (!(await askConfirm({
+      title: 'Delete every notification?',
+      message: 'Changes still awaiting deployment are kept. This cannot be undone.',
+      confirmLabel: 'Delete all',
+    }))) return
     setActionLoading(BULK_ACTION_ID)
     clearErr(BULK_ACTION_ID)
     try {
@@ -577,7 +553,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this notification? This cannot be undone.')) return
+    if (!(await askConfirm({ title: 'Delete this notification?', message: 'This cannot be undone.' }))) return
     setActionLoading(id)
     clearErr(id)
     try {
@@ -605,56 +581,41 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       aria-label="Notifications"
     >
       <div className="admin-bell-dropdown-header">
-        <div className="admin-bell-dropdown-titlegroup">
-          <span className="admin-bell-dropdown-title">Notifications</span>
-          {desktopSupported && (() => {
-            const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied'
-            const label = desktopAlerts
-              ? 'Stop nudging me when a notification arrives'
-              : blocked
-                ? 'Desktop alerts are blocked in this browser'
-                : 'Nudge me when a notification arrives'
-            return (
-              <button
-                type="button"
-                className="admin-bell-dropdown-alerttoggle"
-                aria-pressed={desktopAlerts}
-                title={label}
-                aria-label={label}
-                disabled={blocked && !desktopAlerts}
-                onClick={toggleDesktopAlerts}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9Z" />
-                  <path d="M10 18a2 2 0 0 0 4 0" />
-                  {!desktopAlerts && <path d="M4 4l16 16" />}
-                </svg>
-              </button>
-            )
-          })()}
+        <span className="admin-bell-dropdown-title">Notifications</span>
+        {/* Icons on the right, drawn the way the inbox draws a conversation's
+            actions: the two that act on the whole list share one capsule, and
+            the desktop-alerts bell stands on its own at the very end. */}
+        <div className="admin-bell-dropdown-header-actions">
+          {notifications !== null && notifications.length > 0 && (
+            <div className="admin-icon-group" role="group" aria-label="Every notification">
+              <AdminTooltip body="Mark all as read" placement="bottom">
+                <button
+                  type="button"
+                  className="admin-icon-btn"
+                  aria-label="Mark all as read"
+                  disabled={actionLoading === BULK_ACTION_ID || count === 0}
+                  onClick={handleMarkAllRead}
+                >
+                  {MarkAllReadIcon}
+                </button>
+              </AdminTooltip>
+              <AdminTooltip body="Delete all" placement="bottom">
+                <button
+                  type="button"
+                  className="admin-icon-btn admin-icon-btn--danger"
+                  aria-label="Delete all"
+                  // Nothing to do when the only thing here is the deployment
+                  // notification the endpoint refuses to delete.
+                  disabled={actionLoading === BULK_ACTION_ID || !notifications.some(isDeletable)}
+                  onClick={handleDeleteAll}
+                >
+                  {DeleteAllIcon}
+                </button>
+              </AdminTooltip>
+            </div>
+          )}
+          <DesktopAlertsToggle />
         </div>
-        {notifications !== null && notifications.length > 0 && (
-          <div className="admin-bell-dropdown-header-actions">
-            <button
-              type="button"
-              className="admin-bell-dropdown-headaction"
-              disabled={actionLoading === BULK_ACTION_ID || count === 0}
-              onClick={handleMarkAllRead}
-            >
-              Mark all read
-            </button>
-            <button
-              type="button"
-              className="admin-bell-dropdown-headaction admin-bell-dropdown-headaction--danger"
-              // Nothing to do when the only thing here is the deployment
-              // notification the endpoint refuses to delete.
-              disabled={actionLoading === BULK_ACTION_ID || !notifications.some(isDeletable)}
-              onClick={handleDeleteAll}
-            >
-              Delete all
-            </button>
-          </div>
-        )}
       </div>
       {actionError[BULK_ACTION_ID] && (
         <p className="admin-bell-dropdown-action-error admin-bell-dropdown-bulk-error">{actionError[BULK_ACTION_ID]}</p>
@@ -696,6 +657,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           View all notifications
         </Link>
       </div>
+      {confirmNode}
     </div>,
     document.body
   ) : null

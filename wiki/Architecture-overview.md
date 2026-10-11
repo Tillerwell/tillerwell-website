@@ -351,7 +351,7 @@ On the Notifications page, alerts render a leading icon by type (⬆️ core, �
 
 ### Clearing the list
 
-Both places notifications appear - the Notifications page header and the bell dropdown header - offer **Mark all as read** and **Delete all**, backed by two collection-level handlers:
+Both places notifications appear - the Notifications page header and the bell dropdown header - offer **Mark all as read** and **Delete all** (on both, two icons sharing one capsule, with tooltips, left of the desktop-alerts bell; both ask through the admin's own confirmation dialog, `components/admin/useAdminConfirm.tsx`, rather than the browser's), backed by two collection-level handlers:
 
 | Endpoint | Effect |
 |---|---|

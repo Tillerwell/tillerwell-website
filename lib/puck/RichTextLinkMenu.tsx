@@ -13,6 +13,7 @@
 import React from 'react'
 import { RichTextMenu } from '@puckeditor/core'
 import type { Editor } from '@tiptap/react'
+import { useAdminConfirm, useAdminPrompt } from '@/components/admin/useAdminConfirm'
 
 // Keep in step with the protocol allow-list in config.tsx's richtextExtensions and
 // with sanitizeRichText on the published render path. A bare `example.com` gets an
@@ -41,11 +42,20 @@ function LinkIcon() {
 
 function LinkControl({ editor }: { editor: Editor | null }) {
   const isActive = editor?.isActive('link') ?? false
+  const [askText, promptNode] = useAdminPrompt()
+  const [tell, alertNode] = useAdminConfirm()
 
-  const onClick = () => {
+  const onClick = async () => {
     if (!editor) return
     const current = (editor.getAttributes('link')?.href as string) ?? ''
-    const input = window.prompt('Link address (leave empty to remove the link)', current)
+    const input = await askText({
+      title: current ? 'Edit the link' : 'Add a link',
+      message: 'Leave it empty to remove the link.',
+      defaultValue: current,
+      placeholder: 'https://',
+      inputLabel: 'Link address',
+      confirmLabel: 'Save link',
+    })
     if (input === null) return // cancelled
 
     let url = input.trim()
@@ -58,7 +68,13 @@ function LinkControl({ editor }: { editor: Editor | null }) {
       if (BARE_DOMAIN.test(url)) {
         url = `https://${url}`
       } else {
-        window.alert('That link address is not allowed. Use a web address (https://), email (mailto:), phone (tel:), or an on-page link starting with / or #.')
+        await tell({
+          title: 'That link address is not allowed',
+          message: 'Use a web address (https://), email (mailto:), phone (tel:), or an on-page link starting with / or #.',
+          confirmLabel: 'OK',
+          cancelLabel: '',
+          danger: false,
+        })
         return
       }
     }
@@ -67,12 +83,16 @@ function LinkControl({ editor }: { editor: Editor | null }) {
   }
 
   return (
-    <RichTextMenu.Control
-      icon={<LinkIcon />}
-      title="Link"
-      active={isActive}
-      onClick={onClick}
-    />
+    <>
+      <RichTextMenu.Control
+        icon={<LinkIcon />}
+        title="Link"
+        active={isActive}
+        onClick={() => { void onClick() }}
+      />
+      {promptNode}
+      {alertNode}
+    </>
   )
 }
 

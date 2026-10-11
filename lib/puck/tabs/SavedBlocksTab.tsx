@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createUsePuck } from '@puckeditor/core'
+import { useAdminConfirm, useAdminPrompt } from '@/components/admin/useAdminConfirm'
 
 const usePuck = createUsePuck()
 
@@ -24,6 +25,8 @@ export default function SavedBlocksTab() {
   const [blocks, setBlocks] = useState<SavedBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [askConfirm, confirmNode] = useAdminConfirm()
+  const [askText, promptNode] = useAdminPrompt()
 
   const load = useCallback(() => {
     setLoading(true)
@@ -41,7 +44,8 @@ export default function SavedBlocksTab() {
 
   async function saveSelected() {
     if (!selectedItem) return
-    const name = prompt('Name this block?')
+    const typed = await askText({ title: 'Name this block', placeholder: 'e.g. Spring sale banner', confirmLabel: 'Save block' })
+    const name = typed?.trim()
     if (!name) return
     setError('')
     try {
@@ -78,7 +82,7 @@ export default function SavedBlocksTab() {
   }
 
   async function deleteBlock(id: string) {
-    if (!confirm('Delete this saved block?')) return
+    if (!(await askConfirm({ title: 'Delete this saved block?', message: 'This cannot be undone.' }))) return
     try {
       const res = await fetch(`/api/admin/saved-blocks/${id}`, { method: 'DELETE' })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to delete block'); return }
@@ -90,6 +94,8 @@ export default function SavedBlocksTab() {
 
   return (
     <div>
+      {confirmNode}
+      {promptNode}
       <div style={{ fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.6875rem' }}>
         Saved blocks
       </div>

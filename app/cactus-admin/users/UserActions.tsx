@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 type Role = { id: string; name: string; isProtected: boolean }
 type TargetUser = { id: string; username: string; roleId: string; suspendedAt: string | null; role: Role }
@@ -17,6 +18,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedRoleId, setSelectedRoleId] = useState(targetUser.roleId)
+  const [askConfirm, confirmNode] = useAdminConfirm()
 
   // Non-admin users cannot act on admin-role users
   if (targetUser.role.isProtected && !currentUserIsAdmin) {
@@ -43,7 +45,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete user "${targetUser.username}"? This cannot be undone.`)) return
+    if (!(await askConfirm({ title: `Delete user "${targetUser.username}"?`, message: 'This cannot be undone.' }))) return
     setLoading(true)
     setError('')
     try {
@@ -59,6 +61,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
 
   return (
     <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      {confirmNode}
       {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)' }}>{error}</span>}
 
       {currentUserIsAdmin && (

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { isCompleteRule, type ConditionRule, type DisplayConditions } from '@/lib/layout/displayConditions'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 type HistoryVersion = {
   index: 'live' | number
@@ -35,6 +36,7 @@ export default function LayoutEditorPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const adminPath = useAdminPath()
+  const [askConfirm, confirmNode] = useAdminConfirm()
   const [layout, setLayout] = useState<Layout | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -103,10 +105,10 @@ export default function LayoutEditorPage() {
     // Ask before spending the round-trip, not after it: the old order fetched
     // the whole version blob and only then popped the "are you sure".
     const live = layout?.status === 'published'
-    const warning = live
-      ? 'Restore this version? It goes live immediately, and the version it replaces is kept in this list.'
-      : 'Load this version into the editor? Your current unsaved changes will be replaced.'
-    if (!confirm(warning)) return
+    const ok = await askConfirm(live
+      ? { title: 'Restore this version?', message: 'It goes live immediately, and the version it replaces is kept in this list.', confirmLabel: 'Restore', danger: false }
+      : { title: 'Load this version into the editor?', message: 'Your current unsaved changes will be replaced.', confirmLabel: 'Load it', danger: false })
+    if (!ok) return
 
     setRestoringIndex(index)
     setHistoryError('')
@@ -141,7 +143,7 @@ export default function LayoutEditorPage() {
       setHistoryError('Failed to restore version')
       setRestoringIndex(null)
     }
-  }, [id, layout?.status, markUnsaved])
+  }, [id, layout?.status, markUnsaved, askConfirm])
 
   const handleChange = useCallback((data: Data) => {
     latestDataRef.current = data
@@ -247,6 +249,7 @@ export default function LayoutEditorPage() {
 
   return (
     <>
+      {confirmNode}
       {deleteConfirm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 10001,

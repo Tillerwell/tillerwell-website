@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 type Role = { id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }
 type Permission = { key: string; description: string | null; module: string | null }
@@ -66,6 +67,7 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
   const [newRoleName, setNewRoleName] = useState('')
   const [showNewRole, setShowNewRole] = useState(false)
   const [search, setSearch] = useState('')
+  const [askConfirm, confirmNode] = useAdminConfirm()
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId)
   const categories = useMemo(() => buildCategories(permissions, activeModuleNames), [permissions, activeModuleNames])
@@ -174,7 +176,7 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
 
   async function deleteRole() {
     if (!selectedRole || selectedRole.isProtected || selectedRole.userCount > 0) return
-    if (!confirm(`Delete the "${selectedRole.name}" role? This can't be undone.`)) return
+    if (!(await askConfirm({ title: `Delete the "${selectedRole.name}" role?`, message: 'This can\'t be undone.' }))) return
     setLoading(true)
     setError('')
     try {
@@ -194,6 +196,7 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 'var(--space-6)', alignItems: 'start' }}>
+      {confirmNode}
       {/* Role list */}
       <div className="card" style={{ padding: 'var(--space-3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 var(--space-2)', marginBottom: 'var(--space-2)' }}>

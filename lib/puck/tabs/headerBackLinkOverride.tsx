@@ -1,5 +1,7 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 import { useEditorDirtyState } from './editorDirtyState'
 
 // Puck hardcodes the button label as "Publish" with no override hook for the text itself
@@ -29,20 +31,29 @@ export function createBackLinkOverride(href: string, label: string) {
   return function BackLinkOverride({ children }: { children: ReactNode }) {
     const ref = useRef<HTMLDivElement>(null)
     const { hasUnsavedChanges } = useEditorDirtyState()
+    const router = useRouter()
+    const [askConfirm, confirmNode] = useAdminConfirm()
     useEffect(() => {
       if (ref.current) relabelPublishButton(ref.current)
     })
     // Content only saves on an explicit Update click now (no background autosave),
     // so leaving via this link - a client-side <Link> nav, which beforeunload can't
     // intercept - needs its own confirm before it discards in-progress edits.
+    // The admin's dialog answers later than the click does, so the click is
+    // always held and the navigation made by hand once they say leave.
     const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
-      if (hasUnsavedChanges && !confirm('You have unsaved changes. Leave without clicking Update?')) {
-        e.preventDefault()
-      }
+      if (!hasUnsavedChanges) return
+      e.preventDefault()
+      void askConfirm({
+        title: 'Leave without saving?',
+        message: 'You have unsaved changes. Leave without clicking Update?',
+        confirmLabel: 'Leave',
+      }).then((leave) => { if (leave) router.push(href) })
     }
     return (
       <div ref={ref} style={{ position: 'relative' }}>
         {children}
+        {confirmNode}
         <Link href={href} className="cactus-puck-back-link" title={label} aria-label={label} onClick={handleClick}>
           <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={18} height={18}>
             <path d="m12 19-7-7 7-7" />

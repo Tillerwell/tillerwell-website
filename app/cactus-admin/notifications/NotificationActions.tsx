@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
 type Props = {
   id: string
@@ -16,6 +17,7 @@ export default function NotificationActions({ id, isRead, canRedeploy, viewHref,
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [askConfirm, confirmNode] = useAdminConfirm()
 
   async function handleView() {
     if (!viewHref) return
@@ -74,7 +76,7 @@ export default function NotificationActions({ id, isRead, canRedeploy, viewHref,
   }
 
   async function handleDelete() {
-    if (!confirm('Delete this notification? This cannot be undone.')) return
+    if (!(await askConfirm({ title: 'Delete this notification?', message: 'This cannot be undone.' }))) return
     setLoading(true)
     setError('')
     try {
@@ -109,6 +111,7 @@ export default function NotificationActions({ id, isRead, canRedeploy, viewHref,
       <button className="btn btn-danger btn-sm" disabled={loading} onClick={handleDelete}>
         Delete
       </button>
+      {confirmNode}
     </div>
   )
 }

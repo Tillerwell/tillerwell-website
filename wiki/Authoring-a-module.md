@@ -1361,6 +1361,26 @@ label - a native `title` waits about a second, cannot be styled, wraps however t
 fancies, and never appears for a keyboard user at all. If you wrap a control that also
 sets `title`, turn the native one off so the two do not stack.
 
+**The admin's own "are you sure?"** - `components/admin/useAdminConfirm.tsx`:
+
+```tsx
+import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
+
+const [askConfirm, confirmNode] = useAdminConfirm()
+// ...
+if (!(await askConfirm({ title: 'Delete this?', message: 'This cannot be undone.' }))) return
+// ...and render {confirmNode} once, anywhere in the component.
+```
+
+Use it instead of the browser's `confirm()`, which cannot be styled and which some browsers
+let people switch off for the page - after which every Delete on it does nothing. The
+confirm button is red and says "Delete" unless you pass `danger: false` and a
+`confirmLabel`. It is drawn into `<body>`; pass `{ inline: true }` only when the trigger
+sits inside a dropdown that shuts on a press outside itself (the bell does this). Escape
+cancels the dialog without reaching anything underneath it.
+
+The same file exports `useAdminPrompt()` for the browser's `prompt()`: `const [askText, promptNode] = useAdminPrompt()`, then `await askText({ title, message?, defaultValue?, placeholder?, confirmLabel? })` resolves the text as typed, or `null` if cancelled. For an alert that only needs an OK, call `askConfirm` with `confirmLabel: 'OK'`, `cancelLabel: ''` and `danger: false`.
+
 ## Module cron jobs
 
 A module can register scheduled jobs by declaring `cronJobs` in `cactus.module.json`:
