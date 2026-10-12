@@ -1,6 +1,8 @@
 import { Prisma, type NotificationType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { videoJobTitle } from '@/lib/media/video-job-notification'
+import { isPushworthy } from '@/lib/push/pushworthy'
+import { pushBellAlert } from '@/lib/push/send'
 
 // Generic on-demand alert helpers. Unlike deployment notifications (which append
 // reasons to one open record), alerts are keyed by a stable dedupeKey so the same
@@ -42,9 +44,10 @@ export async function upsertAlert({
     reasons === undefined ? undefined : reasons === null ? Prisma.DbNull : (reasons as Prisma.InputJsonValue)
 
   if (!existing) {
-    await prisma.notification.create({
+    const created = await prisma.notification.create({
       data: { type, dedupeKey, title, link: link ?? null, actionLabel: actionLabel ?? null, reasons: jsonReasons, readAt: null },
     })
+    if (isPushworthy(type)) await pushBellAlert({ id: created.id, title, link: created.link })
     return
   }
 
@@ -72,6 +75,13 @@ export async function upsertAlert({
         updatedAt: new Date(),
       },
     })
+    // Pushed again only when an alert somebody had already read comes back
+    // unread. One still sitting unread has already buzzed their phone once, and
+    // a progress-style alert rewriting its title every few seconds must not
+    // buzz it on every tick.
+    if (!keepRead && existing.readAt !== null && isPushworthy(type)) {
+      await pushBellAlert({ id: existing.id, title, link: nextLink })
+    }
   }
 }
 

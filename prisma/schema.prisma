@@ -59,6 +59,7 @@ model User {
   consentRecords  ConsentRecord[]
   // This staff member's own account in the member area, once they've used it.
   member          Member?
+  pushSubscriptions AdminPushSubscription[]
 
   // email and username are already @unique, which builds a unique index that serves
   // every lookup. A second plain index on the same column bought nothing and cost a
@@ -294,6 +295,13 @@ model SiteConfig {
   // The site's own open and click tracking on mail sent over SMTP (see
   // lib/email/tracking). On by default; Settings > Emails switches it off.
   emailTracking          Boolean   @default(true)
+  // The site's Web Push signing pair (VAPID, P-256), made the first time an
+  // admin turns on alerts for a browser - see lib/push. The private half is
+  // encrypted with ENCRYPTION_KEY; a pair that no longer decrypts (a restore
+  // onto a site with a different key) is replaced, and the browsers bound to
+  // it subscribe again on their next visit.
+  pushVapidPublic           String?
+  pushVapidPrivateEncrypted String?
   // FK to Menu.id — nullable until admin creates and assigns a menu
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
@@ -759,6 +767,23 @@ model Notification {
   @@index([type, deployInitiatedAt])
   @@index([readAt])
   @@index([dedupeKey])
+}
+
+// One browser an admin has said yes to bell alerts in, by Web Push - so a new
+// order reaches their laptop and their phone with no admin tab open. Keyed on
+// the endpoint, which IS the browser: a second person turning alerts on in the
+// same browser takes the row over. See lib/push.
+model AdminPushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 enum NotificationType {

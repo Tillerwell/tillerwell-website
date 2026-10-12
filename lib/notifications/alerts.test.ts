@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { notification } = vi.hoisted(() => ({
+const { notification, pushBellAlert } = vi.hoisted(() => ({
+  pushBellAlert: vi.fn(),
   notification: {
     findFirst: vi.fn(),
     create: vi.fn(),
@@ -10,11 +11,13 @@ const { notification } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { notification } }))
+vi.mock('@/lib/push/send', () => ({ pushBellAlert }))
 
 import { upsertAlert, upsertVideoJobNotification } from './alerts'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  notification.create.mockImplementation(async ({ data }: { data: { link: string | null } }) => ({ id: 'n1', ...data }))
 })
 
 describe('upsertAlert', () => {
@@ -206,5 +209,42 @@ describe('upsertVideoJobNotification', () => {
       where: { id: 'n1' },
       data: expect.objectContaining({ link: '/media?folder=fld_1', actionLabel: 'Open media folder' }),
     })
+  })
+})
+
+describe('upsertAlert - pushing to admins\' browsers', () => {
+  const read = { id: 'n1', title: 'Old', link: '/m/shop/orders/1', actionLabel: null, reasons: null, readAt: new Date('2026-10-01') }
+
+  it('pushes a new message as it is created', async () => {
+    notification.findFirst.mockResolvedValue(null)
+    await upsertAlert({ type: 'message', dedupeKey: 'shop:order:1', title: 'New order DW1', link: '/m/shop/orders/1' })
+    expect(pushBellAlert).toHaveBeenCalledWith({ id: 'n1', title: 'New order DW1', link: '/m/shop/orders/1' })
+  })
+
+  it('pushes a new warning, but never an update notice', async () => {
+    notification.findFirst.mockResolvedValue(null)
+    await upsertAlert({ type: 'alert', dedupeKey: 'a', title: 'Refunds stuck' })
+    await upsertAlert({ type: 'module_update', dedupeKey: 'b', title: 'Update available' })
+    expect(pushBellAlert).toHaveBeenCalledTimes(1)
+    expect(pushBellAlert).toHaveBeenCalledWith(expect.objectContaining({ title: 'Refunds stuck' }))
+  })
+
+  it('pushes again when an alert somebody had read comes back unread', async () => {
+    notification.findFirst.mockResolvedValue(read)
+    await upsertAlert({ type: 'message', dedupeKey: 'shop:order:1', title: 'New order DW1 - paid' })
+    expect(pushBellAlert).toHaveBeenCalledWith({ id: 'n1', title: 'New order DW1 - paid', link: '/m/shop/orders/1' })
+  })
+
+  it('does not push again while the alert is still unread', async () => {
+    notification.findFirst.mockResolvedValue({ ...read, readAt: null })
+    await upsertAlert({ type: 'message', dedupeKey: 'shop:order:1', title: 'New order DW1 - paid' })
+    expect(notification.update).toHaveBeenCalled()
+    expect(pushBellAlert).not.toHaveBeenCalled()
+  })
+
+  it('does not push a progress tick that keeps a read alert read', async () => {
+    notification.findFirst.mockResolvedValue({ ...read, title: 'Encoding' })
+    await upsertAlert({ type: 'message', dedupeKey: 'video-job:1', title: 'Encoding', reasons: [], resurfaceOnTitleChangeOnly: true })
+    expect(pushBellAlert).not.toHaveBeenCalled()
   })
 })

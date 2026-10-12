@@ -171,6 +171,8 @@ CREATE TABLE "SiteConfig" (
     "recoveryPurgeAfterDays" INTEGER NOT NULL DEFAULT 7,
     "emailLogRetentionMonths" INTEGER NOT NULL DEFAULT 12,
     "emailTracking" BOOLEAN NOT NULL DEFAULT true,
+    "pushVapidPublic" TEXT,
+    "pushVapidPrivateEncrypted" TEXT,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "pendingRedeployId" TEXT,
@@ -643,6 +645,22 @@ CREATE TABLE "Notification" (
 CREATE INDEX "Notification_type_deployInitiatedAt_idx" ON "Notification"("type", "deployInitiatedAt");
 CREATE INDEX "Notification_readAt_idx" ON "Notification"("readAt");
 CREATE INDEX "Notification_dedupeKey_idx" ON "Notification"("dedupeKey");
+
+-- One browser an admin has said yes to bell alerts in, by Web Push (lib/push).
+CREATE TABLE "AdminPushSubscription" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "endpoint" TEXT NOT NULL,
+    "p256dh" TEXT NOT NULL,
+    "auth" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "AdminPushSubscription_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "AdminPushSubscription_endpoint_key" ON "AdminPushSubscription"("endpoint");
+CREATE INDEX "AdminPushSubscription_userId_idx" ON "AdminPushSubscription"("userId");
+ALTER TABLE "AdminPushSubscription" ADD CONSTRAINT "AdminPushSubscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- ---------------------------------------------------------------------------
 -- GitHub App Connection

@@ -312,7 +312,7 @@ Related: a Vercel "redeploy" inherits the source deployment's commit unless told
 
 ### Notification data model
 
-`Notification` table, `NotificationType` enum: `deployment`, `core_update`, `module_update`, `message`. The nav bell badge counts **any** unread notification (`getUnreadCount` = `count({ readAt: null })`), so new types light the bell automatically.
+`Notification` table, `NotificationType` enum: `deployment`, `core_update`, `module_update`, `message`, `alert`. The nav bell badge counts **any** unread notification (`getUnreadCount` = `count({ readAt: null })`), so new types light the bell automatically.
 
 | Field | Purpose |
 |---|---|
@@ -348,6 +348,25 @@ Wrappers `recordCoreUpdate(latestVersion)` and `recordModuleUpdate({ moduleId, n
 All triggers are wrapped in try/catch (or fire-and-forget `.catch`) so a notification failure never breaks the endpoint. The contact-form helper is called after every mutation that changes the unread count: submit, the bulk status/delete PATCH, the single-submission status PATCH / DELETE / open-marks-read, and reply (which marks read).
 
 On the Notifications page, alerts render a leading icon by type (⬆️ core, 📦 module, ✉️ message, 🚀 deployment) and a primary "View Update" / "View Messages" button. Clicking it PATCHes the notification `read: true` then navigates to `link` - viewing marks it read. Deployment notifications keep their `canRedeploy`-gated "Redeploy now" action instead.
+
+### Alerts on admins' devices (Web Push)
+
+A bell entry worth interrupting somebody for - type `message` (a new order, a product question, a finished video) or `alert` (a warning) - is also pushed to every browser an admin has switched alerts on in, so it arrives on a laptop or phone with **no admin tab open**. Update notices and deployment entries stay in the bell only. The rule lives in `lib/push/pushworthy.ts` and is shared with the in-tab popups.
+
+**When:** `upsertAlert` pushes when it **creates** a pushworthy alert, and again only when one that had been **read** comes back unread. An alert still sitting unread has already buzzed once; a progress tick that keeps a read alert read never pushes.
+
+**How:** `lib/push/send.ts` (`pushBellAlert`) sends to every `AdminPushSubscription` whose user is unsuspended and still has `config.manage` (the bell's own permission). The payload is sealed per browser (RFC 8291) and signed with the site's VAPID pair (RFC 8292), both on `node:crypto` in `lib/push/web-push.ts` - no dependency. The pair is made on first use and stored on `SiteConfig` (`pushVapidPublic`, `pushVapidPrivateEncrypted`, encrypted with `ENCRYPTION_KEY`); a pair that no longer decrypts after a restore is replaced and every subscription dropped, and browsers re-subscribe on their next admin visit. 5s budget per round, TTL 24h, urgency high; a 404/410 from the push service forgets that browser. Needs an `https` `SITE_URL` (the VAPID subject), so localhost sends nothing. Never throws - it runs at the end of payment webhooks.
+
+| Endpoint | Effect |
+|---|---|
+| `GET /api/admin/push/worker` | The service worker (`lib/push/worker.ts`), public, scope `/api/admin/push/`. Shows each push (tag = notification id, `renotify`), tells open windows to redraw the bell, and on a click focuses an open admin window and asks it to navigate (or opens one). |
+| `GET /api/admin/push/subscription` | `config.manage`. The site's public VAPID key (made on first ask). |
+| `POST /api/admin/push/subscription` | `config.manage`. Keeps `PushSubscription.toJSON()` against the signed-in user; the endpoint must be Apple, FCM, Mozilla or WNS. |
+| `DELETE /api/admin/push/subscription` | `config.manage`. Removes this user's row for that endpoint. |
+
+**In the browser:** the bell button beside Mark all as read / Delete all (`components/admin/DesktopAlertsToggle.tsx`) subscribes on the press (Safari only asks for permission on the back of one). The bell calls `prepareBellPush()` once per page load to register the worker, fetch the key and keep the subscription in step with the on/off choice. While the site is pushing to a browser, that browser's in-tab popups stand down so nothing arrives twice; a browser with notifications but no push keeps the older in-tab popups. **iPhone and iPad** only allow notifications from a Home Screen app: in an ordinary Safari tab the button explains how to add the site to the Home Screen.
+
+The unified-inbox module has its own, separate worker and subscriptions for new-mail nudges; the two do not share anything.
 
 ### Clearing the list
 

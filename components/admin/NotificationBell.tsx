@@ -7,7 +7,9 @@ import Link from 'next/link'
 import DeployStatusLive from './DeployStatusLive'
 import { AdminTooltip } from './Tooltip'
 import { useAdminConfirm } from './useAdminConfirm'
-import { DesktopAlertsToggle, desktopAlertsOn } from './DesktopAlertsToggle'
+import { DesktopAlertsToggle, bellPushActive, desktopAlertsOn, prepareBellPush } from './DesktopAlertsToggle'
+import { isPushworthy } from '@/lib/push/pushworthy'
+import { BELL_ARRIVED_MESSAGE_TYPE, BELL_OPEN_MESSAGE_TYPE } from '@/lib/push/worker'
 import { DeleteAllIcon, MarkAllReadIcon } from './notification-icons'
 import VideoJobProgress from './VideoJobProgress'
 import { parseVideoJobNotification } from '@/lib/media/video-job-notification'
@@ -53,12 +55,12 @@ type Notification = {
 // front. Every open admin tab polls, so this is deliberately unhurried.
 const POLL_INTERVAL_MS = 60_000
 
-// Only 'message' notifications are announced to the desktop: something has
-// arrived for a person (an order, a form message). Deploys, updates and the
-// ticking progress of a video job are all visible in the bell and would be
-// noise as pop-ups.
+// Only messages (an order, a form message) and warnings are announced to the
+// desktop - the same rule the server's push follows (lib/push/pushworthy.ts).
+// Deploys, updates and the ticking progress of a video job are all visible in
+// the bell and would be noise as pop-ups.
 function announceable(n: Notification): boolean {
-  return n.type === 'message' && n.readAt === null
+  return isPushworthy(n.type) && n.readAt === null
 }
 
 // Sentinel key for the whole-list actions in the same loading/error maps the
@@ -375,7 +377,9 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
     const announceNew = (list: Notification[]) => {
       const seen = seenIds.current
       seenIds.current = new Set(list.map(n => n.id))
-      if (seen === null || !desktopAlertsOn()) return
+      // The site is pushing to this browser, and the push shows the same alert
+      // whether or not this tab is open - a popup from here would be a second.
+      if (seen === null || !desktopAlertsOn() || bellPushActive()) return
       for (const n of list) {
         if (seen.has(n.id) || !announceable(n)) continue
         try {
@@ -417,11 +421,31 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
     // by itself, so this is about one request a minute.
     if (document.visibilityState === 'visible' || desktopAlertsOn()) start()
     document.addEventListener('visibilitychange', onVisibilityChange)
+
+    // The push worker (lib/push/worker.ts) telling this window an alert has
+    // landed - redraw the badge now - or that one was pressed and this window
+    // should go to it rather than a second copy of the admin opening.
+    const onWorkerMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: unknown; href?: unknown } | null
+      if (data?.type === BELL_ARRIVED_MESSAGE_TYPE) poll()
+      else if (data?.type === BELL_OPEN_MESSAGE_TYPE && typeof data.href === 'string' && data.href.startsWith('/') && !data.href.startsWith('//')) {
+        router.push(data.href)
+      }
+    }
+    const workers = typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? navigator.serviceWorker : null
+    workers?.addEventListener('message', onWorkerMessage)
     return () => {
       stop()
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      workers?.removeEventListener('message', onWorkerMessage)
     }
   }, [open, router, base])
+
+  // Bell alerts by push: register the worker and, where alerts are already on
+  // in this browser, make sure the site is sending to it. Once per page load.
+  useEffect(() => {
+    void prepareBellPush()
+  }, [])
 
   useEffect(() => {
     if (!open) return
