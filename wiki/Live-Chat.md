@@ -6,6 +6,8 @@ The `live-chat` module gives a Cactus site real live chat: visitors talk to staf
 
 Repo: `cactus-foundation-modules/live-chat-powered-by-chatwoot`
 
+> **Want something simpler?** [Live Chat](Chat) needs no chat server at all: conversations live in your own database. The two can be installed side by side.
+
 ## How it fits together
 
 - **The site (Vercel)** carries only the thin module: the widget block, the admin inbox, and API routes.
