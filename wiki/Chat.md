@@ -16,7 +16,7 @@ Attachments need your media storage set up (Backblaze on most sites). Without it
 
 ## What your visitors see
 
-- A bubble in the corner. Clicking it opens the chat, with your greeting at the top and two optional boxes for their name and email.
+- A bubble in the corner. Clicking it opens the chat, with your greeting at the top and two optional boxes for their name and email. A **Save** button appears once either has something in it; what is saved drops out of the box, and the box goes once both are in. Saved before the first message, the details go with that message.
 - They can send pictures, PDFs and office documents, up to 4MB each and three at a time.
 - After their first message the chat asks whether they would like a **browser notification** when you reply. Say yes and they are told even after they have closed the tab, in browsers that allow it.
 - If you reply while the chat window is shut, your message **pops up above the bubble**, the way a text does on a phone. A number on the bubble says how many they have not read.
