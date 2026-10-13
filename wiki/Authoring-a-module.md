@@ -1743,7 +1743,7 @@ export default async function AnnouncementsPage() {
 }
 ```
 
-Admin pages live at `app/cactus-admin/<module-name>/<page>/page.tsx` inside the module repo. API routes live at `app/api/admin/<module-name>/<endpoint>/route.ts`. The build step runs `generate-module-router.mjs` which scans these directories and wires them into the core's catch-all routes automatically - no changes to core code required.
+Admin pages live at `app/cactus-admin/<module-name>/<page>/page.tsx` inside the module repo. API routes live at `app/api/admin/<module-name>/<endpoint>/route.ts`. The build step runs `generate-module-router.mjs` which scans these directories and wires them into the core's catch-all routes automatically - no changes to core code required. The `<module-name>` wrapper is dropped from the URL only when it is the second segment (`admin/<module-name>/...`, `public/<module-name>/...`); a segment sharing the module's name anywhere else - `admin/visitors/[id]/chat` in the chat module, `admin/boards/boards/...` in boards - stays part of the path.
 
 That's a complete, installable module. Tag it, release it, and any Cactus site can install it.
 

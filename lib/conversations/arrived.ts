@@ -44,9 +44,12 @@ type ExtensionPointEntry = { point: string; id: string }
 export async function announceConversationArrived(event: ConversationArrivedEvent): Promise<void> {
   try {
     // Dynamic for the reason lib/conversations/providers.ts gives: the registry
-    // imports the modules that announce, and a static edge closes a cycle.
-    const { moduleExtensionPointComponents } = await import('@/lib/modules/extension-points')
-    const components = moduleExtensionPointComponents[CONVERSATION_ARRIVED_POINT] ?? {}
+    // imports the modules that announce, and a static edge closes a cycle. The
+    // server map, not the full one: the full one carries every module's client
+    // panels (the 3D viewer among them), and announcers sit in the public
+    // layout's graph, so the full map dragged three.js onto every public page.
+    const { moduleServerExtensionPointComponents } = await import('@/lib/modules/extension-points.server')
+    const components = moduleServerExtensionPointComponents[CONVERSATION_ARRIVED_POINT] ?? {}
     if (Object.keys(components).length === 0) return
 
     const modules = await prisma.module.findMany({

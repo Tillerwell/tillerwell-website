@@ -118,12 +118,14 @@ for (const moduleName of moduleNames) {
       // Strip optional leading slash + route.ts from end
       const withoutRoute = rel.replace(/(?:\/)?route\.ts$/, '')
       const rawSegments = withoutRoute ? withoutRoute.split('/') : []
-      // Strip only the module-name wrapper segment (app/api/admin/<moduleName>/...).
-      // Filtering every occurrence would also eat a legitimate resource segment that
-      // happens to share the module's own name, e.g. the Board-entity endpoints
-      // nested at admin/boards/boards/... for the "boards" module.
-      const nameIdx = rawSegments.indexOf(moduleName)
-      const pattern = nameIdx === -1 ? rawSegments : [...rawSegments.slice(0, nameIdx), ...rawSegments.slice(nameIdx + 1)]
+      // Strip only the module-name wrapper segment, which always sits second
+      // (app/api/<admin|public|member|webhooks>/<moduleName>/...). Filtering every
+      // occurrence would also eat a legitimate resource segment that shares the
+      // module's own name, e.g. the Board-entity endpoints at admin/boards/boards/...
+      // for "boards"; and stripping the first occurrence anywhere ate the tail of
+      // the chat module's admin/visitors/[id]/chat, collapsing it onto
+      // admin/visitors/[id] (GET there hit a POST-only handler, POST to /chat 404'd).
+      const pattern = rawSegments[1] === moduleName ? [rawSegments[0], ...rawSegments.slice(2)] : rawSegments
       const importPath = `@/modules/${moduleName}/app/api/${rel.replace(/\.ts$/, '')}`
       apiRoutes[moduleName].push({ pattern, importPath })
     }
