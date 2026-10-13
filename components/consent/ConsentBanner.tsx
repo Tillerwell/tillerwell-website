@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { withNecessaryFirst } from '@/lib/consent/types'
 import type { ConsentBannerConfig, ConsentDecision, ConsentCookiePayload } from '@/lib/consent/types'
-import { notifyConsentChange, onConsentChange } from '@/lib/consent/gate'
+import { CONSENT_CHANGE_EVENT, notifyConsentChange, onConsentChange } from '@/lib/consent/gate'
 import {
   CONSENT_COOKIE,
   buildDefaultDecision,
   readCookie,
+  readStoredConsent,
   resolveCurrentDecision,
   saveConsentDecision,
   type ConsentAction,
@@ -74,6 +75,21 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
     // Existing consent is current - hydrate window.__cactusConsent
     notifyConsentChange({ necessary: true, ...payload.decision })
   }, [config])
+
+  // A choice saved somewhere other than this banner - the privacy page's panel,
+  // or a module asking for one category where it is needed - answers the
+  // question this banner is asking, so it steps aside rather than sitting there
+  // asking again. Only a stored choice for the current categories counts.
+  useEffect(() => {
+    const answered = () => {
+      const stored = readStoredConsent()
+      if (!stored || stored.version !== config.categoriesVersion) return
+      setVisible(false)
+      setManaging(false)
+    }
+    window.addEventListener(CONSENT_CHANGE_EVENT, answered)
+    return () => window.removeEventListener(CONSENT_CHANGE_EVENT, answered)
+  }, [config.categoriesVersion])
 
   const noticeOnly = !config.categories.some((cat) => !cat.required)
 
