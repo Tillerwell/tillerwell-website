@@ -1026,7 +1026,7 @@ There is a setting called **Fetch everything as it arrives**. It currently behav
 
 ## The other channels
 
-Install the [live chat](Live-Chat), [contact form](Contact-form) or [Twilio](Twilio) modules alongside this one and their conversations appear here too, under **Other channels**.
+Install the [live chat](Chat) (or [Chatwoot live chat](Live-Chat)), [contact form](Contact-form) or [Twilio](Twilio) modules alongside this one and their conversations appear here too, under **Other channels**.
 
 One module can bring more than one channel. Twilio brings two: **Phone** for calls, voicemail and texts, and **WhatsApp** on its own. They are separate because they are separate things to answer - WhatsApp will only carry an ordinary message for 24 hours after somebody last wrote, and the phone has no such rule - and each has its own switch under **Channels**.
 
