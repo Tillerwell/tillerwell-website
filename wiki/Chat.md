@@ -31,6 +31,11 @@ Attachments need your media storage set up (Backblaze on most sites). Without it
 
 Replies go out under your display name, first name only.
 
+## Going offline, and the phone bar
+
+- **Online/Offline switch**: on the Live chat tab of the Inbox, and in the header of the bubble you see on the site while signed in (needs `chat.reply`). Offline is site-wide. Visitors then see your **offline label and message** (set in Settings > Live Chat) instead of the greeting, and can still leave a message. Nothing flips it back for you.
+- **Phone bar**: add the **Live chat: message us** cell to the Mobile Bar block. It opens the chat (or your chat list, when signed in) and carries the unread count. Tick **Hide the floating bubble on phones** in Settings so the bar is the only way in; the bubble stays on larger screens. The Live Chat block must still be in the header or footer, as it is what answers the button.
+
 ## Permissions
 
 | Key | Lets somebody |
@@ -45,7 +50,7 @@ Chats with nothing said in them for longer than the number of months you set (12
 
 ## For developers
 
-- Module name `chat`, table prefix `chat_`: `chat_settings`, `chat_conversations`, `chat_messages` (ids from the sequence `chat_messages_id_seq`), `chat_attachments`.
+- Module name `chat`, table prefix `chat_`: `chat_settings` (including `agent_online`, `hide_bubble_on_mobile`, `away_label`, `away_message`), `chat_conversations`, `chat_messages` (ids from the sequence `chat_messages_id_seq`), `chat_attachments`.
 - **Live on serverless means polling.** The visitor's widget asks for messages after the last id it holds every 3 seconds while open and 12 while shut; admin views every 3-5 seconds; everything slows down when the tab is hidden.
 - **Visitor identity** is a secret handed to the browser with its first message, kept in localStorage and sent as the `x-chat-visitor` header. Only its sha256 is stored. No cookies, no accounts. New chats are limited to 5 an hour from one address, messages to 20 a minute per chat.
 - **Attachments** are stored with core's `uploadMedia` under `media/chat/<conversation>/` with an unguessable key and no library row (declared through `core.media-private-storage`), and served only by `/api/m/chat/attachments/<id>`: a signed `?sig=` link for visitors and transcripts, or an admin session with `chat.view`.
