@@ -153,7 +153,7 @@
     {
       "name": "chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat",
-      "version": "v0.1.1"
+      "version": "v0.1.2"
     },
     {
       "name": "uk-bookkeeping",
