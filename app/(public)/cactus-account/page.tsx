@@ -23,6 +23,7 @@ import NotificationsSection from '@/components/members/account/NotificationsSect
 import ActivitySection from '@/components/members/account/ActivitySection'
 import DangerZoneSection from '@/components/members/account/DangerZoneSection'
 
+export const metadata = { title: 'Your Account' }
 export const dynamic = 'force-dynamic'
 
 type ExtensionPointEntry = { point: string; id: string }
