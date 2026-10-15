@@ -210,6 +210,14 @@ const PADDING_Y_OPTIONS = [
 // that reuse PADDING_Y_OPTIONS, like CTABanner, don't offer an option their
 // render can't honour. When 'screen' is picked the padding falls back to the
 // 'lg' spacing so the content isn't jammed against the viewport edges.
+const SECTION_BOTTOM_MARGIN_OPTIONS = [
+  { value: 'default', label: 'Default (block\'s own margin)' },
+  { value: 'none', label: 'None' },
+  { value: 'sm', label: 'Small' },
+  { value: 'md', label: 'Medium' },
+  { value: 'lg', label: 'Large' },
+  { value: 'xl', label: 'Extra large' },
+]
 const SECTION_PADDING_Y_OPTIONS = [
   ...PADDING_Y_OPTIONS,
   { value: 'screen', label: 'Full view height (100vh)' },
@@ -1167,17 +1175,24 @@ function anchorSlug(raw: unknown): string {
  *  also shows a small label, otherwise there would be nothing on the canvas to
  *  click on to move or remove it. */
 function Anchor(props: any) {
-  const { name, offset, puck } = props
+  const { id, name, offset, puck } = props
   const slug = anchorSlug(name)
-  const scrollMarginTop = typeof offset === 'string' && offset.trim() ? offset.trim() : undefined
+  // The offset can differ per breakpoint (a phone header is not the height of a
+  // desktop one). Desktop goes inline; tablet/mobile override via media query.
+  const rv = normalizeResponsiveValue<string>(offset)
+  const offsetAt = (d: Device) => (pickResponsive(rv, d) ?? '').trim()
+  const css = responsiveMediaCssFor(`[data-anchor-id="${id}"]`, (d) => `scroll-margin-top:${offsetAt(d) || '0'};`)
   return (
-    <div id={slug || undefined} data-anchor={slug || undefined} style={{ height: 0, position: 'relative', scrollMarginTop }}>
+    <>
+    {css && <style>{css}</style>}
+    <div id={slug || undefined} data-anchor={slug || undefined} data-anchor-id={id} style={{ height: 0, position: 'relative', scrollMarginTop: offsetAt('desktop') || undefined }}>
       {puck?.isEditing && (
         <span style={{ position: 'absolute', top: 0, left: 0, transform: 'translateY(-50%)', padding: '0.125rem 0.5rem', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--color-text-muted)', background: 'var(--color-bg)', border: '1px dashed var(--color-border)', borderRadius: '999px', whiteSpace: 'nowrap' }}>
           {slug ? `Anchor: #${slug}` : 'Anchor: type a name'}
         </span>
       )}
     </div>
+    </>
   )
 }
 
@@ -1189,7 +1204,7 @@ function SectionBlock(props: any) {
   const {
     id, content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
     overlayColor = '', overlayOpacity = 0,
-    paddingY = 'lg', maxWidth = 'standard', maxWidthCustom = '', paddingX = '', textColor = '',
+    paddingY = 'lg', bottomMargin = 'default', maxWidth = 'standard', maxWidthCustom = '', paddingX = '', textColor = '',
     contentAlign = 'top',
     sticky = 'off', stickyOffset = '0px',
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
@@ -1304,7 +1319,28 @@ function SectionBlock(props: any) {
     return a === 'top' ? 'display:block;' : `display:flex;flex-direction:column;justify-content:${alignMap[a] ?? 'flex-start'};`
   }
   const desktopCa = pickResponsive(caRv, 'desktop') ?? 'top'
-  const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => {
+  // The 1.5rem under a section's last block is that block's own bottom margin
+  // (most blocks carry one). Collapsed away while the section has no padding, it
+  // shows as soon as vertical padding is set. "Bottom margin" overrides it on the
+  // last block, however deep the slot / wrapper nesting runs (editor wrappers add
+  // a level). "Default" writes no rule, leaving every block's own margin alone.
+  const bmRv = normalizeResponsiveValue<string>(bottomMargin)
+  const bmMap: Record<string, string> = { none: '0', sm: '0.5rem', md: '1rem', lg: '2rem', xl: '3rem' }
+  const bmAt = (d: Device) => bmMap[pickResponsive(bmRv, d) ?? 'default']
+  const lastBlockSel = (sel: string) => [1, 2, 3, 4].map((n) => `${sel}${' > :last-child'.repeat(n)}`).join(',')
+  const bmDecl = (d: Device) => { const v = bmAt(d); return v === undefined ? '' : `margin-bottom:${v}` }
+  const bmCss = [
+    bmDecl('desktop') ? `${lastBlockSel(`[data-section-id="${id}"]`)}{${bmDecl('desktop')} !important;}` : '',
+    ...(['tablet', 'mobile'] as Device[]).map((d) => {
+      const v = bmAt(d)
+      // A tablet/mobile "Default" has no value to write, so the desktop one carries on.
+      if (v === undefined || v === bmAt('desktop')) return ''
+      const decl = `margin-bottom:${v}`
+      const q = d === 'tablet' ? tabletMediaQuery() : mobileMediaQuery()
+      return `${q}{${lastBlockSel(`[data-section-id="${id}"]`)}{${decl} !important;}}`
+    }),
+  ].join('')
+  const innerCss = bmCss + responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => {
     const v = pickResponsive(pyRv, d)
     return `max-width:${mwAt(d)};padding:${pyPad(v)} ${pxAt(d)};min-height:${isScreen(v) ? '100vh' : 'auto'};${alignDecl(pickResponsive(caRv, d))}`
   })
@@ -2724,12 +2760,22 @@ const FEATURE_LIST_GAP_OPTIONS = [
   { value: 'lg', label: 'Large' },
   { value: 'xl', label: 'Extra large' },
 ]
+const FEATURE_LIST_ITEM_PADDING_OPTIONS = [
+  { value: 'default', label: 'Default' },
+  { value: 'none', label: 'None' },
+  { value: 'sm', label: 'Small' },
+  { value: 'md', label: 'Medium' },
+  { value: 'lg', label: 'Large' },
+  { value: 'xl', label: 'Extra large' },
+]
+const FEATURE_LIST_ITEM_PADDING_MAP: Record<string, string> = { none: '0', sm: '0.5rem 0.75rem', md: '1rem 1.125rem', lg: '1.375rem 1.5rem', xl: '2rem 2.25rem' }
 const FEATURE_LIST_GAP_MAP: Record<string, string> = { none: '0', sm: '0.75rem', md: '1.25rem', lg: '2rem', xl: '3rem' }
 
 function FeatureList(props: any) {
   const {
     id, items, iconStyle = 'emoji', padding, paddingY = 'none', columns = '1', gap = 'default',
     titleSize = 'default', descriptionSize = 'default', titleColor = '', descriptionColor = '',
+    itemPadding = 'default', glyphBgColor = '', glyphColor = '', hoverBgColor = '', hoverTitleColor = '', hoverDescriptionColor = '',
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
@@ -2751,6 +2797,7 @@ function FeatureList(props: any) {
   const pyRv = normalizeResponsiveValue<string>(paddingY)
   const titleRv = normalizeResponsiveValue<string>(titleSize)
   const descRv = normalizeResponsiveValue<string>(descriptionSize)
+  const itemPadRv = normalizeResponsiveValue<string>(itemPadding)
   const titleDefault = glyph ? '1.375rem' : '1rem'
   const sizeAt = (rv: ReturnType<typeof normalizeResponsiveValue<string>>, d: Device, fallback: string) => {
     const v = pickResponsive(rv, d) ?? 'default'
@@ -2761,9 +2808,21 @@ function FeatureList(props: any) {
     const g = pickResponsive(gapRv, d) ?? 'default'
     const gapVal = g === 'default' ? (glyph ? '0' : '1.25rem') : (FEATURE_LIST_GAP_MAP[g] ?? '0')
     const py = PADDING_Y_MAP[pickResponsive(pyRv, d) ?? 'none'] ?? '0'
-    return `grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${gapVal};padding-top:${py};padding-bottom:${py};--fl-title-fs:${sizeAt(titleRv, d, titleDefault)};--fl-desc-fs:${sizeAt(descRv, d, '0.9375rem')};`
+    const ip = pickResponsive(itemPadRv, d) ?? 'default'
+    const itemPad = ip === 'default' ? (glyph ? FEATURE_LIST_ITEM_PADDING_MAP.lg : '0') : (FEATURE_LIST_ITEM_PADDING_MAP[ip] ?? '0')
+    return `--fl-item-pad:${itemPad};grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${gapVal};padding-top:${py};padding-bottom:${py};--fl-title-fs:${sizeAt(titleRv, d, titleDefault)};--fl-desc-fs:${sizeAt(descRv, d, '0.9375rem')};`
   }
-  const css = responsiveMediaCssFor(`[data-feature-list-id="${id}"]`, declsFor)
+  const sel = `[data-feature-list-id="${id}"]`
+  // Hover rules have to be stylesheet rules, and !important to beat the inline
+  // colours. The background also takes the border off its transparent default so
+  // the glyph row's hover outline survives; each picked colour carries its own
+  // dark-mode arm through light-dark().
+  const hoverCss = [
+    hoverBgColor ? `${sel} > div:hover{background:${cssColourValue(hoverBgColor)} !important;}` : '',
+    hoverTitleColor ? `${sel} > div:hover :is(h3,h4){color:${cssColourValue(hoverTitleColor)} !important;}` : '',
+    hoverDescriptionColor ? `${sel} > div:hover p{color:${cssColourValue(hoverDescriptionColor)} !important;}` : '',
+  ].join('')
+  const css = responsiveMediaCssFor(sel, declsFor) + hoverCss
   const desktopVars = Object.fromEntries(declsFor('desktop').split(';').filter(Boolean).map((decl) => {
     const [k, ...v] = decl.split(':')
     return [k!.startsWith('--') ? k! : k!.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), v.join(':')]
@@ -2777,11 +2836,11 @@ function FeatureList(props: any) {
             key={i}
             className={glyph ? 'cactus-feature-glyph-row' : undefined}
             style={glyph
-              ? { display: 'flex', gap: '1.125rem', padding: '1.375rem 1.5rem', borderRadius: 12, alignItems: 'flex-start', border: '1px solid transparent' }
-              : { display: 'flex', gap: '1rem', alignItems: 'flex-start' }}
+              ? { display: 'flex', gap: '1.125rem', padding: 'var(--fl-item-pad)', borderRadius: 12, alignItems: 'flex-start', border: '1px solid transparent' }
+              : { display: 'flex', gap: '1rem', padding: 'var(--fl-item-pad)', borderRadius: 12, alignItems: 'flex-start' }}
           >
             {glyph
-              ? <span aria-hidden="true" style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: 'var(--color-primary)', color: 'var(--color-bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              ? <span aria-hidden="true" style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: glyphBgColor || 'var(--color-primary)', color: glyphColor || 'var(--color-bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                   dangerouslySetInnerHTML={{ __html: (GLYPH_ICONS[item.icon] ?? GLYPH_ICONS.check) as string }} />
               : item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
             <div style={{ minWidth: 0 }}>
@@ -3395,6 +3454,7 @@ export const puckConfig = {
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)', min: 0, max: 100 },
         paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        bottomMargin: { type: 'custom' as const, label: 'Bottom margin (under last block)', options: SECTION_BOTTOM_MARGIN_OPTIONS, render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'edge', label: 'Edge to edge (no padding)' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }, { value: 'custom', label: 'Custom…' }], render: ResponsiveSelectField },
         maxWidthCustom: { type: 'custom' as const, label: 'Custom max-width', units: ['px', '%', 'rem', 'vw', 'ch'], render: ResponsiveUnitValueField },
         paddingX: { type: 'custom' as const, label: 'Side padding (blank = automatic)', units: ['px', 'rem', '%', 'vw'], render: ResponsiveUnitValueField },
@@ -3410,7 +3470,7 @@ export const puckConfig = {
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
-      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', ...PATTERN_DEFAULTS, overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', maxWidthCustom: '', paddingX: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', ...PATTERN_DEFAULTS, overlayColor: '', overlayOpacity: 0, paddingY: 'lg', bottomMargin: 'default', maxWidth: 'standard', maxWidthCustom: '', paddingX: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
       // Only applicable fields survive: the image picker/size belong to the
       // 'image' background (though they stay visible while a legacy block still
       // carries an image under another mode, so a painting value is never
@@ -3618,7 +3678,7 @@ export const puckConfig = {
       label: 'Anchor',
       fields: {
         name: { type: 'text' as const, label: 'Anchor name (e.g. browse links to /page#browse)' },
-        offset: { type: 'custom' as const, label: 'Stop this far from the top (clears a sticky header)', units: ['px', 'rem'], render: UnitValueField },
+        offset: { type: 'custom' as const, label: 'Stop this far from the top (clears a sticky header)', units: ['px', 'rem'], render: ResponsiveUnitValueField },
       },
       defaultProps: { name: '', offset: '' },
       render: Anchor,
@@ -4216,13 +4276,19 @@ export const puckConfig = {
         gap: { type: 'custom' as const, label: 'Space between features', options: FEATURE_LIST_GAP_OPTIONS, render: ResponsiveSelectField },
         titleSize: { type: 'custom' as const, label: 'Title size', options: FEATURE_LIST_SIZE_OPTIONS, render: ResponsiveSelectField },
         descriptionSize: { type: 'custom' as const, label: 'Description size', options: FEATURE_LIST_SIZE_OPTIONS, render: ResponsiveSelectField },
+        itemPadding: { type: 'custom' as const, label: 'Padding inside each feature', options: FEATURE_LIST_ITEM_PADDING_OPTIONS, render: ResponsiveSelectField },
+        glyphBgColor: { type: 'custom' as const, label: 'Glyph square colour (glyph style)', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        glyphColor: { type: 'custom' as const, label: 'Glyph icon colour (glyph style)', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverBgColor: { type: 'custom' as const, label: 'Hover background colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverTitleColor: { type: 'custom' as const, label: 'Hover title colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverDescriptionColor: { type: 'custom' as const, label: 'Hover description colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         titleColor: { type: 'custom' as const, label: 'Title colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         descriptionColor: { type: 'custom' as const, label: 'Description colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
         paddingY: { type: 'custom' as const, label: 'Padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         ...aosFields,
       },
-      defaultProps: { iconStyle: 'emoji' as const, columns: '1', gap: 'default', titleSize: 'default', descriptionSize: 'default', titleColor: '', descriptionColor: '', paddingY: 'none', items: [{ emoji: '✨', icon: 'check', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', icon: 'star', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
+      defaultProps: { iconStyle: 'emoji' as const, columns: '1', gap: 'default', titleSize: 'default', descriptionSize: 'default', titleColor: '', descriptionColor: '', itemPadding: 'default', glyphBgColor: '', glyphColor: '', hoverBgColor: '', hoverTitleColor: '', hoverDescriptionColor: '', paddingY: 'none', items: [{ emoji: '✨', icon: 'check', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', icon: 'star', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
       render: FeatureList,
     },
     SpecPanel: {
