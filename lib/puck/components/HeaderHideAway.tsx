@@ -23,6 +23,14 @@ import { useEffect, useRef } from 'react'
 //
 // Pinned is read from where the header actually is rather than from scrollY,
 // so anything sitting above the header does not throw the threshold out.
+//
+// Scrolling back up brings the hidden rows back: the header is stuck at its
+// negative `top`, so the rows are off screen as well as faded and only return
+// at the very top of the page. Once pinned, an upward scroll sets data-revealed,
+// which the CSS turns into top:0 (rows slide in, pinned drops so they unfade);
+// a downward scroll clears it and the header tucks away again. Revealing is only
+// ever armed from the pinned state, so it cannot pull a header that is still
+// travelling off screen to the top early.
 // Mirrored as a plain string in headerRootRender's CSS: a server file reading a
 // value out of a 'use client' module gets a throwing proxy, not the string.
 const HEADER_AWAY_ATTR = 'data-header-away'
@@ -37,6 +45,8 @@ export default function HeaderHideAway({ children }: { children: React.ReactNode
 
     let line = 0
     let pinned = false
+    let revealed = false
+    let lastY = win.scrollY
     let frame = 0
 
     function mark() {
@@ -68,8 +78,15 @@ export default function HeaderHideAway({ children }: { children: React.ReactNode
 
     function apply() {
       frame = 0
-      if (!header) return
-      const next = line > 0 && header.getBoundingClientRect().top <= -line + 0.5
+      if (!header || !win) return
+      const y = win.scrollY
+      const delta = y - lastY
+      lastY = y
+      const atRest = line > 0 && header.getBoundingClientRect().top <= -line + 0.5
+      if (y <= 0 || delta > 2) revealed = false
+      else if (delta < -2 && atRest) revealed = true
+      header.toggleAttribute('data-revealed', revealed)
+      const next = !revealed && atRest
       if (next === pinned) return
       pinned = next
       header.toggleAttribute('data-pinned', next)
@@ -100,6 +117,7 @@ export default function HeaderHideAway({ children }: { children: React.ReactNode
       win.removeEventListener('resize', remark)
       if (frame) win.cancelAnimationFrame(frame)
       header.removeAttribute('data-pinned')
+      header.removeAttribute('data-revealed')
       header.querySelectorAll(`[${HEADER_AWAY_ATTR}]`).forEach((el) => el.removeAttribute(HEADER_AWAY_ATTR))
     }
   }, [])

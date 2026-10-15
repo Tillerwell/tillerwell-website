@@ -5083,7 +5083,10 @@ const headerRootRender = ({
     ? [
         'header[data-hide-away] [data-header-away]{transition:opacity 0.2s ease,visibility 0.2s;}',
         'header[data-hide-away][data-pinned] [data-header-away]{opacity:0;visibility:hidden;}',
-        '@media(prefers-reduced-motion:reduce){header[data-hide-away] [data-header-away]{transition:none;}}',
+        // Scrolled back up: the header drops to the top of the viewport so the
+        // rows that went away return (HeaderHideAway sets data-revealed).
+        'header[data-hide-away][data-revealed]{top:0 !important;transition:top 0.2s ease,height 0.25s ease;}',
+        '@media(prefers-reduced-motion:reduce){header[data-hide-away] [data-header-away],header[data-hide-away][data-revealed]{transition:none;}}',
       ].join('\n')
     : ''
   // What is left pinned once the top has gone - the number every sticky block on
