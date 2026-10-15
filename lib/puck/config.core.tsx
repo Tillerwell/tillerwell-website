@@ -195,13 +195,20 @@ const SPACE_BELOW_MAP: Record<string, string> = { none: '0', sm: '0.75rem', md: 
 // wherever it's picked. The horizontal half of the pair lives in the
 // cactus-pad-* utility classes (tokens.ts) - these are inline because they vary
 // per block instance rather than per site.
-const PADDING_Y_MAP: Record<string, string> = { none: '0', sm: '2rem', md: '4rem', lg: '6rem', xl: '10rem' }
+const PADDING_Y_MAP: Record<string, string> = { none: '0', xs: '1rem', sm: '2rem', md: '4rem', lg: '6rem', xl: '10rem' }
 const PADDING_Y_OPTIONS = [
   { value: 'none', label: 'None' },
   { value: 'sm', label: 'Small' },
   { value: 'md', label: 'Medium' },
   { value: 'lg', label: 'Large' },
   { value: 'xl', label: 'Extra large' },
+]
+// Feature List alone offers the extra-small step (1rem); the map above honours
+// it for any block that later adds it to its own list.
+const FEATURE_LIST_PADDING_Y_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'xs', label: 'Extra small' },
+  ...PADDING_Y_OPTIONS.slice(1),
 ]
 // Section's own vertical-padding list: the shared options plus "Full view
 // height", which isn't a padding value at all but a `min-height: 100vh` on the
@@ -4285,7 +4292,7 @@ export const puckConfig = {
         titleColor: { type: 'custom' as const, label: 'Title colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         descriptionColor: { type: 'custom' as const, label: 'Description colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
-        paddingY: { type: 'custom' as const, label: 'Padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        paddingY: { type: 'custom' as const, label: 'Padding (top/bottom)', options: FEATURE_LIST_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         ...aosFields,
       },
       defaultProps: { iconStyle: 'emoji' as const, columns: '1', gap: 'default', titleSize: 'default', descriptionSize: 'default', titleColor: '', descriptionColor: '', itemPadding: 'default', glyphBgColor: '', glyphColor: '', hoverBgColor: '', hoverTitleColor: '', hoverDescriptionColor: '', paddingY: 'none', items: [{ emoji: '✨', icon: 'check', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', icon: 'star', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
