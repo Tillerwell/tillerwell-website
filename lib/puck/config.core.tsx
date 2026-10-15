@@ -1149,6 +1149,38 @@ function Divider(props: any) {
   )
 }
 
+/** Turn whatever an owner typed into a fragment that works in a URL: lower case,
+ *  letters/digits/hyphens only. "Browse our range!" becomes "browse-our-range".
+ *  A leading "#" is forgiven, since that is how people will type it. */
+function anchorSlug(raw: unknown): string {
+  const text = typeof raw === 'string' ? raw : ''
+  return text
+    .trim()
+    .replace(/^#+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** A zero-height marker a link can scroll to: /page#browse. The element carries
+ *  the id and nothing else, so it adds no gap to the layout. In the editor it
+ *  also shows a small label, otherwise there would be nothing on the canvas to
+ *  click on to move or remove it. */
+function Anchor(props: any) {
+  const { name, offset, puck } = props
+  const slug = anchorSlug(name)
+  const scrollMarginTop = typeof offset === 'string' && offset.trim() ? offset.trim() : undefined
+  return (
+    <div id={slug || undefined} data-anchor={slug || undefined} style={{ height: 0, position: 'relative', scrollMarginTop }}>
+      {puck?.isEditing && (
+        <span style={{ position: 'absolute', top: 0, left: 0, transform: 'translateY(-50%)', padding: '0.125rem 0.5rem', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--color-text-muted)', background: 'var(--color-bg)', border: '1px dashed var(--color-border)', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+          {slug ? `Anchor: #${slug}` : 'Anchor: type a name'}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Section block — full-width container with background, padding, AOS, sticky
 // ---------------------------------------------------------------------------
@@ -2679,38 +2711,89 @@ function Stats(props: any) {
   )
 }
 
+const FEATURE_LIST_SIZE_OPTIONS = [
+  { value: 'default', label: 'Default' },
+  ...['14', '16', '18', '20', '22', '24', '28', '32', '36', '40', '48'].map((n) => ({ value: `${n}px`, label: `${n}px` })),
+]
+const FEATURE_LIST_COLUMN_OPTIONS = ['1', '2', '3', '4', '5', '6'].map((n) => ({ value: n, label: n === '1' ? '1 per line' : `${n} per line` }))
+const FEATURE_LIST_GAP_OPTIONS = [
+  { value: 'default', label: 'Default' },
+  { value: 'none', label: 'None' },
+  { value: 'sm', label: 'Small' },
+  { value: 'md', label: 'Medium' },
+  { value: 'lg', label: 'Large' },
+  { value: 'xl', label: 'Extra large' },
+]
+const FEATURE_LIST_GAP_MAP: Record<string, string> = { none: '0', sm: '0.75rem', md: '1.25rem', lg: '2rem', xl: '3rem' }
+
 function FeatureList(props: any) {
-  const { items, iconStyle = 'emoji', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const {
+    id, items, iconStyle = 'emoji', padding, paddingY = 'none', columns = '1', gap = 'default',
+    titleSize = 'default', descriptionSize = 'default', titleColor = '', descriptionColor = '',
+    animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
+  } = props
   const obfuscate = !puck?.isEditing
+  // Blank keeps the theme colours. A picked colour carries its own dark-mode arm
+  // as `light-dark(l, d)` (lib/puck/lightDark.ts), so one field covers both schemes.
+  const titleFg = titleColor || 'var(--color-fg)'
+  const descFg = descriptionColor || 'var(--color-fg-secondary)'
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No features yet — add some in the panel.</div>
   // "glyph" variant: each row leads with a solid teal rounded square holding a
   // white line-icon, with larger serif titles — the concept's "beliefs" rows.
   // "emoji" (default) keeps the original inline emoji + compact title layout so
   // existing FeatureList blocks render unchanged.
   const glyph = iconStyle === 'glyph'
+  // Columns, gap, vertical padding and the two font sizes are per-device. Desktop
+  // rides the inline style (through custom properties for the sizes, so the text
+  // elements need no rule of their own); tablet/mobile ride one media rule each.
+  const colsRv = normalizeResponsiveValue<string>(columns)
+  const gapRv = normalizeResponsiveValue<string>(gap)
+  const pyRv = normalizeResponsiveValue<string>(paddingY)
+  const titleRv = normalizeResponsiveValue<string>(titleSize)
+  const descRv = normalizeResponsiveValue<string>(descriptionSize)
+  const titleDefault = glyph ? '1.375rem' : '1rem'
+  const sizeAt = (rv: ReturnType<typeof normalizeResponsiveValue<string>>, d: Device, fallback: string) => {
+    const v = pickResponsive(rv, d) ?? 'default'
+    return v === 'default' ? fallback : v
+  }
+  const declsFor = (d: Device) => {
+    const cols = Math.min(6, Math.max(1, parseInt(pickResponsive(colsRv, d) ?? '1', 10) || 1))
+    const g = pickResponsive(gapRv, d) ?? 'default'
+    const gapVal = g === 'default' ? (glyph ? '0' : '1.25rem') : (FEATURE_LIST_GAP_MAP[g] ?? '0')
+    const py = PADDING_Y_MAP[pickResponsive(pyRv, d) ?? 'none'] ?? '0'
+    return `grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${gapVal};padding-top:${py};padding-bottom:${py};--fl-title-fs:${sizeAt(titleRv, d, titleDefault)};--fl-desc-fs:${sizeAt(descRv, d, '0.9375rem')};`
+  }
+  const css = responsiveMediaCssFor(`[data-feature-list-id="${id}"]`, declsFor)
+  const desktopVars = Object.fromEntries(declsFor('desktop').split(';').filter(Boolean).map((decl) => {
+    const [k, ...v] = decl.split(':')
+    return [k!.startsWith('--') ? k! : k!.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), v.join(':')]
+  })) as React.CSSProperties
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {items.map((item: any, i: number) => (
-        <div
-          key={i}
-          className={glyph ? 'cactus-feature-glyph-row' : undefined}
-          style={glyph
-            ? { display: 'flex', gap: '1.125rem', padding: '1.375rem 1.5rem', borderRadius: 12, alignItems: 'flex-start', border: '1px solid transparent' }
-            : { display: 'flex', gap: '1rem', marginBottom: '1.25rem', alignItems: 'flex-start' }}
-        >
-          {glyph
-            ? <span aria-hidden="true" style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: 'var(--color-primary)', color: 'var(--color-bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                dangerouslySetInnerHTML={{ __html: (GLYPH_ICONS[item.icon] ?? GLYPH_ICONS.check) as string }} />
-            : item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
-          <div>
-            {item.title && (glyph
-              ? <h3 style={{ margin: '0 0 0.375rem', fontFamily: 'var(--display-family, Georgia, serif)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--color-fg)', lineHeight: 1.2 }}>{protectText(item.title, obfuscate)}</h3>
-              : <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-fg)' }}>{protectText(item.title, obfuscate)}</h4>)}
-            {item.description && <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, fontSize: glyph ? '0.9375rem' : '0.9375rem', maxWidth: glyph ? '48ch' : undefined, whiteSpace: 'pre-wrap' }}>{protectText(item.description, obfuscate)}</p>}
+    <>
+      {css && <style>{css}</style>}
+      <div data-feature-list-id={id} className={getPaddingClasses(padding)} style={{ display: 'grid', marginBottom: '1.5rem', ...desktopVars }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+        {items.map((item: any, i: number) => (
+          <div
+            key={i}
+            className={glyph ? 'cactus-feature-glyph-row' : undefined}
+            style={glyph
+              ? { display: 'flex', gap: '1.125rem', padding: '1.375rem 1.5rem', borderRadius: 12, alignItems: 'flex-start', border: '1px solid transparent' }
+              : { display: 'flex', gap: '1rem', alignItems: 'flex-start' }}
+          >
+            {glyph
+              ? <span aria-hidden="true" style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: 'var(--color-primary)', color: 'var(--color-bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  dangerouslySetInnerHTML={{ __html: (GLYPH_ICONS[item.icon] ?? GLYPH_ICONS.check) as string }} />
+              : item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
+            <div style={{ minWidth: 0 }}>
+              {item.title && (glyph
+                ? <h3 style={{ margin: '0 0 0.375rem', fontFamily: 'var(--display-family, Georgia, serif)', fontSize: 'var(--fl-title-fs)', fontWeight: 500, color: titleFg, lineHeight: 1.2 }}>{protectText(item.title, obfuscate)}</h3>
+                : <h4 style={{ margin: '0 0 0.25rem', fontSize: 'var(--fl-title-fs)', fontWeight: 700, color: titleFg }}>{protectText(item.title, obfuscate)}</h4>)}
+              {item.description && <p style={{ margin: 0, color: descFg, lineHeight: 1.65, fontSize: 'var(--fl-desc-fs)', maxWidth: glyph ? '48ch' : undefined, whiteSpace: 'pre-wrap' }}>{protectText(item.description, obfuscate)}</p>}
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -3274,7 +3357,7 @@ const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY =
 
 export const puckConfig = {
   categories: {
-    layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
+    layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider', 'Anchor'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner', 'IconLink'],            defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed'], defaultExpanded: true },
@@ -3530,6 +3613,15 @@ export const puckConfig = {
       },
       defaultProps: { style: 'solid' as const, color: '' as const, thickness: 'thin' as const, spaceAbove: 'md' as const, spaceBelow: 'md' as const, spaceAbovePx: '', spaceBelowPx: '', ...aosDefaults },
       render: Divider,
+    },
+    Anchor: {
+      label: 'Anchor',
+      fields: {
+        name: { type: 'text' as const, label: 'Anchor name (e.g. browse links to /page#browse)' },
+        offset: { type: 'custom' as const, label: 'Stop this far from the top (clears a sticky header)', units: ['px', 'rem'], render: UnitValueField },
+      },
+      defaultProps: { name: '', offset: '' },
+      render: Anchor,
     },
     // ── Embed ───────────────────────────────────────────────────────────────
     // Drop a saved Layout (e.g. a shop Category layout) into any page. Picking
@@ -4120,9 +4212,17 @@ export const puckConfig = {
       fields: {
         iconStyle: { type: 'select' as const, label: 'Icon style', options: [{ value: 'emoji', label: 'Emoji' }, { value: 'glyph', label: 'Teal glyph square' }] },
         items: { type: 'array' as const, label: 'Features', getItemSummary: (item: { title?: string }) => item.title || 'Feature', arrayFields: { emoji: { type: 'text' as const, label: 'Emoji (emoji style)' }, icon: { type: 'select' as const, label: 'Icon (glyph style)', options: [{ value: 'share', label: 'Share' }, { value: 'tag', label: 'Price tag' }, { value: 'compass', label: 'Compass' }, { value: 'check', label: 'Checkmark' }, { value: 'shield', label: 'Shield' }, { value: 'clock', label: 'Clock' }, { value: 'star', label: 'Star' }, { value: 'truck', label: 'Delivery' }] }, title: { type: 'text' as const, label: 'Title' }, description: { type: 'textarea' as const, label: 'Description' } }, defaultItemProps: { emoji: '✨', icon: 'check', title: 'Feature title', description: 'Describe this feature here.' } },
-        padding: paddingField, ...aosFields,
+        columns: { type: 'custom' as const, label: 'Features per line', options: FEATURE_LIST_COLUMN_OPTIONS, render: ResponsiveSelectField },
+        gap: { type: 'custom' as const, label: 'Space between features', options: FEATURE_LIST_GAP_OPTIONS, render: ResponsiveSelectField },
+        titleSize: { type: 'custom' as const, label: 'Title size', options: FEATURE_LIST_SIZE_OPTIONS, render: ResponsiveSelectField },
+        descriptionSize: { type: 'custom' as const, label: 'Description size', options: FEATURE_LIST_SIZE_OPTIONS, render: ResponsiveSelectField },
+        titleColor: { type: 'custom' as const, label: 'Title colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        descriptionColor: { type: 'custom' as const, label: 'Description colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        padding: paddingField,
+        paddingY: { type: 'custom' as const, label: 'Padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        ...aosFields,
       },
-      defaultProps: { iconStyle: 'emoji' as const, items: [{ emoji: '✨', icon: 'check', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', icon: 'star', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
+      defaultProps: { iconStyle: 'emoji' as const, columns: '1', gap: 'default', titleSize: 'default', descriptionSize: 'default', titleColor: '', descriptionColor: '', paddingY: 'none', items: [{ emoji: '✨', icon: 'check', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', icon: 'star', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
       render: FeatureList,
     },
     SpecPanel: {
@@ -4771,7 +4871,7 @@ export const footerPuckConfig = {
 
 export const layoutPuckConfig = {
   categories: {
-    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
+    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider', 'Anchor'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner', 'IconLink'],                           defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
@@ -4798,6 +4898,7 @@ export const layoutPuckConfig = {
     Split:        puckConfig.components.Split,
     Spacer:       puckConfig.components.Spacer,
     Divider:      puckConfig.components.Divider,
+    Anchor:       puckConfig.components.Anchor,
     Heading:      puckConfig.components.Heading,
     TextBlock:    puckConfig.components.TextBlock,
     RichTextBlock: puckConfig.components.RichTextBlock,

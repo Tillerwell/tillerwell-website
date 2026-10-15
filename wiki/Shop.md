@@ -1431,6 +1431,10 @@ quietly stopping.
 The same pair of settings appear on the **Filters & Product Grid** block, where filtering
 and sorting carry on working instantly either way - see [Shop filters](Shop-filters).
 
+### A sticky category bar on the Product Grid
+
+The **Product Grid** block can now wear a row of category buttons ("All", "Desks", "Chairs" and so on) above the products. It follows the shopper down the page while they browse the shelf and lets go when the shelf ends. Tapping a button swaps the shelf to that category and keeps its order, so a Best Sellers shelf stays best-sellers-first inside every category. Switch it on with **Sticky category filter bar** in the block's settings; leave **Filter bar categories** blank for every top-level category, or list slugs to pick and order them. If your site has a fixed header, use **gap under a fixed site header** so the bar stops beneath it rather than behind it. It is for shelves without paging, since the two would be fighting over which products are showing.
+
 ### The cart, your way
 
 The basket page is now designable too, from its own **Cart** sub-tab - it no longer has to make do with one fixed look. Out of the box it shows a ready-made design built around a new **Cart** block: the full working cart - items, quantities, a remove button, a coupon box, the running total and the checkout button - with a suggestions row underneath. Two other starters come with it: a **two-column** layout with the items on the left and suggestions in a sidebar, and a **card list** that puts each item in its own tidy card.
