@@ -4,7 +4,7 @@ Social Hub connects your **Facebook Page** and your **LinkedIn Page** to the sit
 
 - Sidebar: **Social Hub** (one link, with the lists and the composer on the page).
 - Settings: **Settings → Social Hub**, with sub-tabs **Accounts**, **Facebook setup**, **LinkedIn setup**, **Publishing** and **Help**.
-- Module repository: [social-hun](https://github.com/cactus-foundation-modules/social-hun).
+- Module repository: [social-hub](https://github.com/cactus-foundation-modules/social-hub).
 
 ## Using it
 
