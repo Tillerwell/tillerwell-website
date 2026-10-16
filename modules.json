@@ -179,6 +179,11 @@
       "name": "social-hub",
       "repoUrl": "https://github.com/cactus-foundation-modules/social-hub",
       "version": "v0.1.14"
+    },
+    {
+      "name": "pay-via-worldfirst-for-shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/pay-via-worldfirst-for-shop",
+      "version": "v0.1.1"
     }
   ]
 }

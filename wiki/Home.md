@@ -36,6 +36,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Advanced Shipping](Advanced-Shipping) | Live delivery dates on every product and basket line, plus paid delivery-and-assembly options picked per item |
 | [Address Lookup](Address-Lookup) | Shoppers type the first line of their address at checkout and the rest fills itself in, via Ideal Postcodes |
 | [Pay With Atoa](Pay-With-Atoa) | Pay by bank at your checkout: the shopper approves the payment in their own banking app, no card and no card fees |
+| [Pay via WorldFirst](Pay-Via-WorldFirst) | Send shoppers to WorldFirst's own payment page and bring them back; the order confirms itself when WorldFirst says the money is in |
 | [Stock Imports](Stock-Imports) | Keeping stock counts in step with a supplier's stock file, on a schedule you set, or on demand from the Products page |
 | [Google Shopping](Google-Shopping) | A Merchant Center feed with every variation as its own listing - give Google one address and the catalogue keeps itself up to date |
 | [Abandoned Carts](Abandoned-Carts) | The baskets nobody finished, with whatever the shopper typed into the checkout before they went, plus optional reminder emails - all behind your cookie banner |
