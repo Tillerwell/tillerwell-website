@@ -667,7 +667,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
               onVideoJobSettled={fetchNotifications}
             />
           ))
-        ) : (
+        ) : deployStatus.active ? null : (
           <p className="admin-bell-dropdown-empty">Nothing needs your attention. Lovely.</p>
         )}
       </div>
