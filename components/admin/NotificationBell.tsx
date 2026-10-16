@@ -281,6 +281,9 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[] | null>(null)
   const [count, setCount] = useState(unreadCount)
+  // Whether the last fetch found anything at all. Starts true so a click before the
+  // first poll lands still opens the dropdown rather than guessing.
+  const [hasAny, setHasAny] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [actionError, setActionError] = useState<Record<string, string>>({})
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -313,6 +316,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       .then(r => r.json())
       .then(data => {
         setNotifications(data.notifications ?? [])
+        setHasAny((data.notifications ?? []).length > 0)
         setCount(data.unreadCount ?? 0)
       })
       .catch(() => setNotifications([]))
@@ -368,6 +372,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
         .then(r => r.json())
         .then(data => {
           setCount(data.unreadCount ?? 0)
+          setHasAny((data.notifications ?? []).length > 0)
           if (open) setNotifications(data.notifications ?? [])
           announceNew((data.notifications ?? []) as Notification[])
         })
@@ -700,7 +705,13 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
         aria-label={label}
         aria-expanded={open}
         aria-haspopup="true"
-        onClick={() => (open ? setOpen(false) : openDropdown())}
+        onClick={() => {
+          if (open) setOpen(false)
+          // Nothing to peek at (no notifications, no redeploy, no upload): skip the
+          // empty dropdown and go straight to the page.
+          else if (!hasAny && !deployStatus.active && activeUploads === 0) router.push(href)
+          else openDropdown()
+        }}
       >
         <svg
           aria-hidden="true"

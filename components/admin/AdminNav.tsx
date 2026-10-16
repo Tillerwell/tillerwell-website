@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { ResolvedNavItem, ResolvedNavSection, NavVisibilityMode } from '@/lib/nav/admin-menu'
+import { DEFAULT_SIDEBAR_PREFS, type ResolvedNavItem, type ResolvedNavSection, type NavVisibilityMode, type SidebarPrefs } from '@/lib/nav/admin-menu'
 import AboutModal from './AboutModal'
 import { useNavReorder, type NavDragZone } from './useNavReorder'
 
@@ -12,6 +12,8 @@ type Props = {
   adminPath: string
   version: string
   sections: ResolvedNavSection[]
+  /** Site-wide sidebar display choices (Settings > Admin Menu). */
+  prefs?: SidebarPrefs
   collapsed?: boolean
   onNavClick?: () => void
 }
@@ -104,6 +106,7 @@ const EYE_OFF_ICON = (
 const SECTIONS_COLLAPSE_KEY = 'cactus-sidebar-sections-collapsed'
 const FAVOURITES_KEY = 'cactus-sidebar-favourites'
 const RECENTS_KEY = 'cactus-sidebar-recents'
+const ALL_LINKS_OPEN_KEY = 'cactus-sidebar-all-links-open'
 const FAV_SECTION = '__favourites'
 const RECENT_SECTION = '__recent'
 const MAX_RECENTS = 5
@@ -116,7 +119,7 @@ function restrictedLabel(mode: NavVisibilityMode): string {
   return 'Only selected roles can see this'
 }
 
-export default function AdminNav({ adminPath, version, sections, collapsed, onNavClick }: Props) {
+export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT_SIDEBAR_PREFS, collapsed, onNavClick }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
   const navRef = useRef<HTMLElement>(null)
@@ -129,6 +132,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
   const [pendingPath, setPendingPath] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [allLinksOpen, setAllLinksOpen] = useState(false)
   // Collapsed-rail tooltip: the scroll container clips horizontally, so a
   // fixed-positioned portal to <body> is the only way the tip escapes the rail.
   const [tip, setTip] = useState<{ text: string; top: number; left: number } | null>(null)
@@ -170,6 +174,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
       if (rawFav) setFavourites(JSON.parse(rawFav))
       const rawRecent = localStorage.getItem(RECENTS_KEY)
       if (rawRecent) setRecents(JSON.parse(rawRecent))
+      if (localStorage.getItem(ALL_LINKS_OPEN_KEY) === 'true') setAllLinksOpen(true)
     } catch {
       // ignore malformed cache
     }
@@ -298,10 +303,10 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
   // set for the expand-all / collapse-all control.
   const sectionLabels = useMemo(() => {
     const labels = sections.map((s) => s.label).filter((l): l is string => !!l)
-    if (favourites.length > 0) labels.unshift(FAV_SECTION)
-    if (recents.length > 0) labels.unshift(RECENT_SECTION)
+    if (prefs.showFavourites && favourites.length > 0) labels.unshift(FAV_SECTION)
+    if (prefs.showRecents && recents.length > 0) labels.unshift(RECENT_SECTION)
     return labels
-  }, [sections, favourites.length, recents.length])
+  }, [sections, favourites.length, recents.length, prefs.showFavourites, prefs.showRecents])
 
   const anyExpanded = sectionLabels.some((l) => !collapsedSections[l])
 
@@ -448,9 +453,34 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     )
   }
 
-  const favouriteItems = favourites
+  function toggleAllLinks() {
+    setAllLinksOpen((prev) => {
+      try {
+        localStorage.setItem(ALL_LINKS_OPEN_KEY, String(!prev))
+      } catch {
+        // ignore
+      }
+      return !prev
+    })
+  }
+
+  // The rail has no room for an accordion and its icons are the whole menu, so
+  // the setting only applies to the full-width sidebar.
+  const accordion = prefs.linksInAccordion && !collapsed
+  const treeOpen = !accordion || allLinksOpen
+
+  const showToolsRow = !collapsed && prefs.showTools
+  const favouriteItems = (prefs.showFavourites ? favourites : [])
     .map((id) => itemsById.get(id))
     .filter((i): i is ResolvedNavItem => !!i)
+
+  const favouritesBlock =
+    (collapsed || !filterQuery) && favouriteItems.length > 0 ? (
+      <div className={prefs.favouritesSticky ? 'admin-nav-pinned-favs' : 'admin-nav-favs-flow'}>
+        {!collapsed && renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
+        {(collapsed || !collapsedSections[FAV_SECTION]) && favouriteItems.map((item) => renderItem(item, 'fav', 'fav'))}
+      </div>
+    ) : null
 
   return (
     <nav ref={navRef} className={reorder.isDragging ? 'admin-nav--dragging' : undefined} onKeyDown={onNavKeyDown}>
@@ -458,9 +488,9 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
           scrolls under them. On the icon rail the toolbar goes (there is no room
           for a filter box) but Favourites stay - shortcuts you pinned are exactly
           what the rail is for, so they hold the top of it as icons. */}
-      {(!collapsed || favouriteItems.length > 0) && (
+      {(showToolsRow || (favouriteItems.length > 0 && prefs.favouritesSticky)) && (
         <div className={`admin-nav-pinned${collapsed ? ' admin-nav-pinned--collapsed' : ''}`} ref={pinnedRef}>
-          {!collapsed && (
+          {showToolsRow && (
           <div className="admin-nav-tools">
             <div className="admin-nav-filter-wrap">
               <span className="admin-nav-filter-icon">{SEARCH_ICON}</span>
@@ -535,14 +565,10 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
               long list can never swallow the whole rail. Collapsed, the heading
               would be a word with nowhere to sit, so the icons stand on their own
               and the block's own border marks where they end. */}
-          {(collapsed || !filterQuery) && favouriteItems.length > 0 && (
-            <div className="admin-nav-pinned-favs">
-              {!collapsed && renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
-              {(collapsed || !collapsedSections[FAV_SECTION]) && favouriteItems.map((item) => renderItem(item, 'fav', 'fav'))}
-            </div>
-          )}
+          {prefs.favouritesSticky && favouritesBlock}
         </div>
       )}
+      {!prefs.favouritesSticky && favouritesBlock}
 
       {/* Filter results replace the normal tree while a query is present. */}
       {!collapsed && filterQuery ? (
@@ -556,7 +582,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
       ) : (
         <>
           {/* Recently visited */}
-          {!collapsed && recents.length > 0 && (
+          {!collapsed && prefs.showRecents && recents.length > 0 && (
             <div>
               {renderSectionHeader(RECENT_SECTION, 'Recent', CLOCK_ICON, !collapsedSections[RECENT_SECTION])}
               {!collapsedSections[RECENT_SECTION] &&
@@ -577,8 +603,20 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
             </div>
           )}
 
+          {accordion && (
+            <button
+              type="button"
+              className="admin-nav-section-label admin-nav-all-toggle"
+              onClick={toggleAllLinks}
+              aria-expanded={allLinksOpen}
+            >
+              <span className="admin-nav-section-label-text">View all</span>
+              <span className={`admin-nav-section-chevron${allLinksOpen ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+            </button>
+          )}
+
           {/* Real sections - filtered by the server, then ordered by this user */}
-          {orderedSections.map((section, sectionIndex) => {
+          {treeOpen && orderedSections.map((section, sectionIndex) => {
             const open = collapsed || !section.label || !collapsedSections[section.label]
             const emptyTarget = reorder.isDraggingTree && open && section.items.length === 0
             return (
@@ -625,7 +663,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
             </button>
           </form>
         </div>
-        {!collapsed && (
+        {!collapsed && prefs.showVersion && (
           <button
             type="button"
             className="admin-nav-version admin-nav-version-btn"

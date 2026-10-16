@@ -8,7 +8,7 @@ import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
-import { adminScreenTitle, buildModuleNavGroups, parseAdminMenuConfig, resolveAdminMenuForEditor, type ModuleManifestNav, type EditorNavSection } from '@/lib/nav/admin-menu'
+import { adminScreenTitle, buildModuleNavGroups, parseAdminMenuConfig, resolveAdminMenuForEditor, resolveSidebarPrefs, type ModuleManifestNav, type EditorNavSection, type SidebarPrefs } from '@/lib/nav/admin-menu'
 import ConfigPageClient from './ConfigPageClient'
 import type { Metadata } from 'next'
 
@@ -169,6 +169,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   // module link, unfiltered by permission - so an admin can set rules on all of them.
   let navEditorData: {
     useSiteLogo: boolean
+    sidebarPrefs: SidebarPrefs
     siteLogoUploaded: boolean
     sections: EditorNavSection[]
     roles: Array<{ id: string; name: string; isProtected: boolean }>
@@ -191,6 +192,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     if (hasInboxTab) availableCoreItemIds.add('inbox')
     navEditorData = {
       useSiteLogo: parseAdminMenuConfig(siteConfigRow?.adminMenuConfig).useSiteLogo === true,
+      sidebarPrefs: resolveSidebarPrefs(parseAdminMenuConfig(siteConfigRow?.adminMenuConfig)),
       siteLogoUploaded: !!siteConfigRow?.logoMediaId,
       sections: resolveAdminMenuForEditor(moduleGroups, parseAdminMenuConfig(siteConfigRow?.adminMenuConfig), availableCoreItemIds),
       roles: navRoles,

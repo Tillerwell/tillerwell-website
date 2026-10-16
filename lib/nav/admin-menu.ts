@@ -129,8 +129,54 @@ export const AdminMenuConfigSchema = z.object({
   // menu editor, which leaves both alone when it writes the rest of this blob.
   settingsSidebar: z.boolean().optional(),
   settingsSidebarHideSubTabs: z.boolean().optional(),
+  // Settings > Admin Menu: what the sidebar shows around the link tree. Every flag is
+  // optional and absent means "as the sidebar always was" (see resolveSidebarPrefs).
+  sidebarPrefs: z
+    .object({
+      showRecents: z.boolean().optional(),
+      showFavourites: z.boolean().optional(),
+      favouritesSticky: z.boolean().optional(),
+      showTools: z.boolean().optional(),
+      showVersion: z.boolean().optional(),
+      linksInAccordion: z.boolean().optional(),
+    })
+    .optional(),
 })
 export type AdminMenuConfig = z.infer<typeof AdminMenuConfigSchema>
+
+export type SidebarPrefs = {
+  showRecents: boolean
+  showFavourites: boolean
+  /** Favourites stay pinned under the tools while the rest scrolls. Only meaningful with favourites on. */
+  favouritesSticky: boolean
+  /** Filter box, New menu, reset-order and collapse-all row. */
+  showTools: boolean
+  /** The "Cactus Foundation vX" button at the foot of the sidebar. */
+  showVersion: boolean
+  /** Hide the full link tree behind a "View all" accordion. */
+  linksInAccordion: boolean
+}
+
+export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {
+  showRecents: true,
+  showFavourites: true,
+  favouritesSticky: true,
+  showTools: true,
+  showVersion: true,
+  linksInAccordion: false,
+}
+
+export function resolveSidebarPrefs(config: AdminMenuConfig): SidebarPrefs {
+  const p = config.sidebarPrefs ?? {}
+  return {
+    showRecents: p.showRecents ?? DEFAULT_SIDEBAR_PREFS.showRecents,
+    showFavourites: p.showFavourites ?? DEFAULT_SIDEBAR_PREFS.showFavourites,
+    favouritesSticky: p.favouritesSticky ?? DEFAULT_SIDEBAR_PREFS.favouritesSticky,
+    showTools: p.showTools ?? DEFAULT_SIDEBAR_PREFS.showTools,
+    showVersion: p.showVersion ?? DEFAULT_SIDEBAR_PREFS.showVersion,
+    linksInAccordion: p.linksInAccordion ?? DEFAULT_SIDEBAR_PREFS.linksInAccordion,
+  }
+}
 
 const EMPTY_CONFIG: AdminMenuConfig = { items: {}, sections: {} }
 

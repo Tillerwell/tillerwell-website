@@ -93,6 +93,10 @@ When editing a menu (see [Appearance and design](Appearance-and-design)), choose
 
 ---
 
+## Social posts (with Social Hub)
+
+When the Social Hub module is installed, a **Social posts** tab appears after Templates. It shows every post with whether it is on Facebook and LinkedIn, when it is due if scheduled, and a **Post** button where it is not. See [Social Hub](Social-Hub#with-gazette-the-social-posts-tab). Without Social Hub the tab simply is not there. Gazette itself holds nothing for it: the tab is published into Gazette's `gazette.admin-tabs` extension point and Gazette only passes it the list of posts.
+
 ## Comments
 
 Turn comments on or off, and choose how they're moderated, from **Settings → General → Gazette**:

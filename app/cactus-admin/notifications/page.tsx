@@ -97,7 +97,7 @@ export default async function NotificationsPage() {
         </div>
       </div>
 
-      <DeployStatusLive />
+      <DeployStatusLive full />
 
       {notifications.length === 0 ? (
         <div className="card" style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: 'var(--space-8)' }}>

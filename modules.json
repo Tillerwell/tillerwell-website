@@ -118,7 +118,7 @@
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.37"
+      "version": "v0.1.38"
     },
     {
       "name": "contact-form",
@@ -178,7 +178,7 @@
     {
       "name": "social-hub",
       "repoUrl": "https://github.com/cactus-foundation-modules/social-hub",
-      "version": "v0.1.4"
+      "version": "v0.1.5"
     }
   ]
 }

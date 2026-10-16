@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getSessionWithMeta, msUntilExpiry } from '@/lib/auth/session'
 import { hasPermissions, isAdmin } from '@/lib/permissions/check'
-import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, resolveAdminMenu, type ModuleManifestNav } from '@/lib/nav/admin-menu'
+import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, resolveAdminMenu, resolveSidebarPrefs, type ModuleManifestNav } from '@/lib/nav/admin-menu'
 import { getInstalledModules } from '@/lib/modules/live-status'
 import { MODULES_IN_BUILD } from '@/lib/modules/router'
 import AdminShell from '@/components/admin/AdminShell'
@@ -150,6 +150,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Optional: the site logo in place of favicon + name at the top of the sidebar
   // (Settings > General > Admin Menu). Only looked up when switched on and a logo exists.
   const useSiteLogo = parseAdminMenuConfig(config?.adminMenuConfig).useSiteLogo === true
+  const sidebarPrefs = resolveSidebarPrefs(parseAdminMenuConfig(config?.adminMenuConfig))
   const sidebarLogoIds = useSiteLogo && config?.logoMediaId
     ? [config.logoMediaId, config.logoDarkMediaId].filter((v): v is string => !!v)
     : []
@@ -192,6 +193,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         siteName={config?.siteName ?? 'Cactus Foundation'}
         version={pkg.version}
         sections={menuSections}
+        sidebarPrefs={sidebarPrefs}
         moduleSettingsTabs={moduleSettingsTabs}
         unreadCount={unreadCount}
         faviconUrl={branding.faviconUrl}

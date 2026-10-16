@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
 import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
 import { isInboxRoute, isSidebarRailRoute } from '@/lib/nav/sidebar-rail-routes'
-import type { ResolvedNavSection } from '@/lib/nav/admin-menu'
+import type { ResolvedNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
 
 type Props = {
   adminPath: string
@@ -18,6 +18,7 @@ type Props = {
   version: string
   children: React.ReactNode
   sections: ResolvedNavSection[]
+  sidebarPrefs?: SidebarPrefs
   moduleSettingsTabs?: Array<{ id: string; label: string }>
   unreadCount?: number
   faviconUrl?: string | null
@@ -29,7 +30,7 @@ type Props = {
   sessionExpiresInMs?: number
 }
 
-export default function AdminShell({ adminPath, siteName, version, children, sections, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, logoUrl, logoDarkUrl, sessionExpiresInMs }: Props) {
+export default function AdminShell({ adminPath, siteName, version, children, sections, sidebarPrefs, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, logoUrl, logoDarkUrl, sessionExpiresInMs }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -215,6 +216,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
             adminPath={adminPath}
             version={version}
             sections={sections}
+            prefs={sidebarPrefs}
             collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
           />

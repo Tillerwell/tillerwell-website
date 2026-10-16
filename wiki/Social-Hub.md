@@ -44,6 +44,19 @@ Everything is on **Settings → Social Hub**. The **Facebook setup** and **Linke
 - LinkedIn sign-ins last about 60 days. Social Hub renews them quietly when LinkedIn gave the app a refresh token; otherwise the page shows **Needs reconnecting** and one press of **Reconnect** fixes it for another two months.
 - A page that needs reconnecting is flagged on the Social Hub page and in the admin bell. Posts for it fail with a clear message and can be retried after reconnecting.
 
+## With Gazette: the Social posts tab
+
+If the **Gazette** module is installed too, Gazette gets one extra tab, **Social posts** (`Gazette -> Social posts`, needs `socialhub.view`). It lists every Gazette post with a **Facebook** column and a **LinkedIn** column:
+
+- **Posted** with a **View post** link, when a post on that page links to the Gazette post. Social Hub looks for the address both in the link card and in the words of the post, ignoring `www.`, `http` versus `https`, a trailing slash and tracking tags (`?utm_...`).
+- **Scheduled**, with **Due** and the date and time, when a post waiting to go out links to it.
+- **Failed**, with **Try again**, when the last attempt did not go out.
+- **Not posted**, with a **Post** button that opens the usual new-post sheet already filled in: the post title and excerpt, the Gazette post attached as a link card, and that network's pages ticked. Needs `socialhub.post`. Drafts, posts not live yet and members-only posts have no public address, so they have no button.
+
+With more than one page on a network the column lists each page by name. Two filters (Facebook and LinkedIn: **Any / Posted / Scheduled / Not posted**) and a title search narrow the list; set Facebook to **Not posted** and LinkedIn to **Posted** to find what still needs putting on Facebook.
+
+**The limit worth knowing:** Social Hub only knows what it has read from each page - the most recent 25 Facebook posts and 20 LinkedIn posts at each hourly read, kept from then on - plus the posts written in Social Hub itself. A Gazette post shared by hand long before Social Hub was connected shows **Not posted**. Shortened links (`fb.me`, `lnkd.in`) cannot be matched back to the post.
+
 ## Permissions
 
 Set under **Roles**:

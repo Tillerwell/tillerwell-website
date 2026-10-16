@@ -22,7 +22,7 @@ import MembersGdprClient from './MembersGdprClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
 import NavBuilder from './NavBuilder'
 import ScheduledJobsClient from './ScheduledJobsClient'
-import type { EditorNavSection } from '@/lib/nav/admin-menu'
+import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
 import {
   PROVIDER_KIND,
   PROVIDER_LABELS,
@@ -657,7 +657,7 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 type ModuleTab = { id: string; label: string; parent?: string }
 // Settings > General > Site: tabs down a sidebar, and optionally no sub-tab strips.
 type SettingsSidebarPrefs = { enabled: boolean; hideSubTabs: boolean }
-type NavEditorData = { useSiteLogo: boolean; siteLogoUploaded: boolean; sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
+type NavEditorData = { useSiteLogo: boolean; sidebarPrefs: SidebarPrefs; siteLogoUploaded: boolean; sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
 
 type ConfigPageInnerProps = {
   moduleTabs: ModuleTab[]
@@ -1869,7 +1869,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {showSubStrip && <TabStrip className="settings-sub-tabs" items={subItems} />}
 
       {tab === 'navigation' && showNavTab && navEditorData && (
-        <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} useSiteLogo={navEditorData.useSiteLogo} siteLogoUploaded={navEditorData.siteLogoUploaded} />
+        <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} useSiteLogo={navEditorData.useSiteLogo} sidebarPrefs={navEditorData.sidebarPrefs} siteLogoUploaded={navEditorData.siteLogoUploaded} />
       )}
 
       {/* Saves each row on its own, like the admin menu editor - hence no page-level

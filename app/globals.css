@@ -885,6 +885,32 @@ a:hover {
 .admin-bell-deploy-line--latest {
   color: var(--color-text);
 }
+/* Notifications page: the whole log, one row per step, tick when done and a
+   spinner while it is still going. */
+.admin-bell-deploy-log--full {
+  max-height: none;
+  overflow-y: visible;
+}
+.admin-bell-deploy-line--step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.admin-bell-deploy-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+.admin-bell-deploy-glyph--done { color: var(--color-success, var(--color-primary)); }
+.admin-bell-deploy-glyph--failed { color: var(--color-error, var(--color-text)); }
+.admin-bell-deploy-glyph .setup-spinner {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--color-primary);
+}
 .admin-bell-deploy-actions {
   display: flex;
   gap: var(--space-2);
@@ -1607,6 +1633,10 @@ a:hover {
 }
 
 /* ── Navigation builder (Settings > Navigation) ── */
+.navb-prefs { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+.navb-prefs-title { font-weight: var(--font-medium); color: var(--color-text); }
+.navb-pref--nested { margin-left: var(--space-5); }
+.admin-nav-all-toggle .admin-nav-section-label-text { font-weight: var(--font-medium); }
 .navb-intro { color: var(--color-text-muted); font-size: 14px; margin-bottom: var(--space-4); max-width: 62ch; }
 .navb-status { font-size: 13px; }
 .navb-status--dirty { color: var(--color-text-muted); }

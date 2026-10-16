@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SettingsHeaderActions } from '@/components/admin/SettingsHeaderActions'
-import type { EditorNavSection, NavVisibilityMode, AdminMenuConfig } from '@/lib/nav/admin-menu'
+import type { EditorNavSection, NavVisibilityMode, AdminMenuConfig, SidebarPrefs } from '@/lib/nav/admin-menu'
 
 type Role = { id: string; name: string; isProtected: boolean }
 
@@ -12,6 +12,8 @@ type Props = {
   roles: Role[]
   /** Saved "site logo in the sidebar" choice. */
   useSiteLogo: boolean
+  /** Saved sidebar display choices (recents, favourites, tools, version, accordion). */
+  sidebarPrefs: SidebarPrefs
   /** A site logo exists (Appearance > Styles); the switch is inert without one. */
   siteLogoUploaded: boolean
 }
@@ -39,6 +41,15 @@ const MODE_OPTIONS: Array<{ value: NavVisibilityMode; label: string }> = [
   { value: 'hidden', label: 'Hidden from the menu' },
 ]
 
+const PREF_ROWS: Array<{ key: keyof SidebarPrefs; label: string }> = [
+  { key: 'showRecents', label: 'Show recently visited pages' },
+  { key: 'showFavourites', label: 'Show favourites' },
+  { key: 'favouritesSticky', label: 'Keep favourites pinned at the top while the menu scrolls' },
+  { key: 'showTools', label: 'Show the menu tools (filter, New, collapse all)' },
+  { key: 'linksInAccordion', label: 'Hide all links behind a “View all” accordion' },
+  { key: 'showVersion', label: 'Show the Cactus Foundation version at the bottom' },
+]
+
 function initWork(sections: EditorNavSection[]): WorkSection[] {
   return sections.map((s) => ({
     id: s.id,
@@ -55,7 +66,7 @@ function initWork(sections: EditorNavSection[]): WorkSection[] {
   }))
 }
 
-function toConfig(work: WorkSection[], useSiteLogo: boolean): AdminMenuConfig {
+function toConfig(work: WorkSection[], useSiteLogo: boolean, sidebarPrefs: SidebarPrefs): AdminMenuConfig {
   const items: AdminMenuConfig['items'] = {}
   const sections: AdminMenuConfig['sections'] = {}
   work.forEach((sec, si) => {
@@ -73,21 +84,22 @@ function toConfig(work: WorkSection[], useSiteLogo: boolean): AdminMenuConfig {
       items[it.id] = override
     })
   })
-  return useSiteLogo ? { items, sections, useSiteLogo } : { items, sections }
+  return useSiteLogo ? { items, sections, sidebarPrefs, useSiteLogo } : { items, sections, sidebarPrefs }
 }
 
-export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteLogo, siteLogoUploaded }: Props) {
+export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteLogo, sidebarPrefs: savedPrefs, siteLogoUploaded }: Props) {
   const router = useRouter()
   const [work, setWork] = useState<WorkSection[]>(() => initWork(sections))
   const [useSiteLogo, setUseSiteLogo] = useState(savedUseSiteLogo)
-  const [savedJson, setSavedJson] = useState<string>(() => JSON.stringify(toConfig(initWork(sections), savedUseSiteLogo)))
+  const [prefs, setPrefs] = useState<SidebarPrefs>(savedPrefs)
+  const [savedJson, setSavedJson] = useState<string>(() => JSON.stringify(toConfig(initWork(sections), savedUseSiteLogo, savedPrefs)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState(false)
   const [resetArmed, setResetArmed] = useState(false)
 
   const selectableRoles = useMemo(() => roles.filter((r) => !r.isProtected), [roles])
-  const currentJson = useMemo(() => JSON.stringify(toConfig(work, useSiteLogo)), [work, useSiteLogo])
+  const currentJson = useMemo(() => JSON.stringify(toConfig(work, useSiteLogo, prefs)), [work, useSiteLogo, prefs])
   const dirty = currentJson !== savedJson
 
   function update(next: WorkSection[]) {
@@ -140,7 +152,7 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
     setSaving(true)
     setError(null)
     try {
-      const payload = toConfig(work, useSiteLogo)
+      const payload = toConfig(work, useSiteLogo, prefs)
       const res = await fetch('/api/admin/navigation', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -173,7 +185,7 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
       const res = await fetch('/api/admin/navigation', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(useSiteLogo ? { items: {}, sections: {}, useSiteLogo } : { items: {}, sections: {} }),
+        body: JSON.stringify(useSiteLogo ? { items: {}, sections: {}, sidebarPrefs: prefs, useSiteLogo } : { items: {}, sections: {}, sidebarPrefs: prefs }),
       })
       if (!res.ok) throw new Error('Could not reset the menu')
       // Full reload so the editor re-reads the default order/labels from the server.
@@ -204,6 +216,23 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
           <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>(upload a site logo under Appearance &gt; Styles first)</span>
         )}
       </label>
+
+      <div className="navb-prefs">
+        <div className="navb-prefs-title">Sidebar display</div>
+        {PREF_ROWS.map((row) => {
+          if (row.key === 'favouritesSticky' && !prefs.showFavourites) return null
+          return (
+            <label key={row.key} className={`settings-check${row.key === 'favouritesSticky' ? ' navb-pref--nested' : ''}`}>
+              <input
+                type="checkbox"
+                checked={prefs[row.key]}
+                onChange={(e) => setPrefs({ ...prefs, [row.key]: e.target.checked })}
+              />
+              {row.label}
+            </label>
+          )
+        })}
+      </div>
 
       <SettingsHeaderActions>
         {error && <span className="navb-status navb-status--err">{error}</span>}
