@@ -57,6 +57,20 @@ With more than one page on a network the column lists each page by name. Two fil
 
 **The limit worth knowing:** Social Hub only knows what it has read from each page - the most recent 25 Facebook posts and 20 LinkedIn posts at each hourly read, kept from then on - plus the posts written in Social Hub itself. A Gazette post shared by hand long before Social Hub was connected shows **Not posted**. Shortened links (`fb.me`, `lnkd.in`) cannot be matched back to the post.
 
+## Deleting a post from Facebook or LinkedIn
+
+On the **Published** list, every post has a **Delete from Facebook** (or **LinkedIn**) button for anyone with `socialhub.post`. It asks first, because this removes the post from the page for everyone, reactions and comments included, and cannot be undone.
+
+- Social Hub asks the network to delete the post **first**. Only when the network agrees is it removed from the list here. If the network refuses (a missing permission, a sign-in that needs renewing) you are told why and nothing changes.
+- A post that was already deleted on Facebook or LinkedIn itself is simply cleared from the list.
+- If Social Hub posted it, its own record of that post goes too, so the Gazette **Social posts** tab stops showing it as posted.
+- Only posts shown in the list can be deleted. Facebook needs the `pages_manage_posts` permission (already required for posting); LinkedIn needs you to be a super admin of the page.
+- The **Delete** button on drafts and scheduled posts is unchanged: those never reached a network, so they just disappear from here.
+
+## When a network will not share everything
+
+Each read of a page records what the network refused to hand over (like and comment counts, link details, older posts). It is shown under the page in **Settings -> Social Hub -> Accounts**, as a banner on the Social Hub page and on the Gazette **Social posts** tab, and as part of the admin bell notification. It clears by itself on the next read once the cause is fixed (usually: reconnect the page and accept every permission offered). Facebook is read in steps, richest first, so a refusal of the counts still leaves you the posts and their links.
+
 ## Permissions
 
 Set under **Roles**:

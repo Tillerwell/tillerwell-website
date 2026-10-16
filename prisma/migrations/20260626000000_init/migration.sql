@@ -39,6 +39,7 @@ CREATE TABLE "User" (
     "totpLastStep" BIGINT,
     "smsOtpPhoneEncrypted" TEXT,
     "phone" TEXT,
+    "notificationPrefs" JSONB,
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 

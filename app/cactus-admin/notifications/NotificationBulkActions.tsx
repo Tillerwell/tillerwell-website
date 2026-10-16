@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AdminTooltip } from '@/components/admin/Tooltip'
 import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 import { DesktopAlertsToggle } from '@/components/admin/DesktopAlertsToggle'
-import { DeleteAllIcon, MarkAllReadIcon } from '@/components/admin/notification-icons'
+import { DeleteAllIcon, MarkAllReadIcon, SettingsIcon } from '@/components/admin/notification-icons'
 
 type Props = {
   /** Everything in the table, not just the page's capped slice. */
@@ -16,9 +17,11 @@ type Props = {
    * leaves these alone, so they come off the number the confirm names.
    */
   pendingDeploy: number
+  /** Settings > General > Notifications, where the person picks what they get. */
+  settingsHref: string
 }
 
-export default function NotificationBulkActions({ total, unread, pendingDeploy }: Props) {
+export default function NotificationBulkActions({ total, unread, pendingDeploy, settingsHref }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -74,8 +77,8 @@ export default function NotificationBulkActions({ total, unread, pendingDeploy }
   }
 
   // The same icons as the bell's dropdown header, in the same order: the two
-  // whole-list actions sharing a capsule, then the desktop-alerts bell on its
-  // own. The bell shows even on an empty list - whether to be nudged is not a
+  // whole-list actions sharing a capsule, then the settings cog, then the desktop-alerts bell on
+  // their own. The bell shows even on an empty list - whether to be nudged is not a
   // question about what is in it.
   return (
     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -108,6 +111,13 @@ export default function NotificationBulkActions({ total, unread, pendingDeploy }
           </AdminTooltip>
         </div>
       )}
+      <div className="admin-icon-group">
+        <AdminTooltip body="Notification settings" placement="bottom">
+          <Link href={settingsHref} className="admin-icon-btn" aria-label="Notification settings">
+            {SettingsIcon}
+          </Link>
+        </AdminTooltip>
+      </div>
       <DesktopAlertsToggle />
       {confirmNode}
     </div>

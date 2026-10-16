@@ -8,7 +8,7 @@ import DeployStatusLive from './DeployStatusLive'
 import { AdminTooltip } from './Tooltip'
 import { useAdminConfirm } from './useAdminConfirm'
 import { DesktopAlertsToggle, bellPushActive, desktopAlertsOn, prepareBellPush } from './DesktopAlertsToggle'
-import { isPushworthy } from '@/lib/push/pushworthy'
+import { wantsBrowserAlert, type NotificationPrefs } from '@/lib/notifications/preferences'
 import { BELL_ARRIVED_MESSAGE_TYPE, BELL_OPEN_MESSAGE_TYPE } from '@/lib/push/worker'
 import { DeleteAllIcon, MarkAllReadIcon } from './notification-icons'
 import VideoJobProgress from './VideoJobProgress'
@@ -55,12 +55,11 @@ type Notification = {
 // front. Every open admin tab polls, so this is deliberately unhurried.
 const POLL_INTERVAL_MS = 60_000
 
-// Only messages (an order, a form message) and warnings are announced to the
-// desktop - the same rule the server's push follows (lib/push/pushworthy.ts).
-// Deploys, updates and the ticking progress of a video job are all visible in
-// the bell and would be noise as pop-ups.
-function announceable(n: Notification): boolean {
-  return isPushworthy(n.type) && n.readAt === null
+// What is announced to the desktop is each admin's own choice (Settings >
+// Notifications) - the same rule the server's push follows. By default that is
+// messages (an order, a form message) and warnings; deploys are never announced.
+function announceable(n: Notification, prefs: NotificationPrefs): boolean {
+  return wantsBrowserAlert(prefs, n) && n.readAt === null
 }
 
 // Sentinel key for the whole-list actions in the same loading/error maps the
@@ -374,19 +373,19 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           setCount(data.unreadCount ?? 0)
           setHasAny((data.notifications ?? []).length > 0)
           if (open) setNotifications(data.notifications ?? [])
-          announceNew((data.notifications ?? []) as Notification[])
+          announceNew((data.notifications ?? []) as Notification[], data.prefs as NotificationPrefs | undefined)
         })
         .catch(() => {})
     }
 
-    const announceNew = (list: Notification[]) => {
+    const announceNew = (list: Notification[], prefs: NotificationPrefs | undefined) => {
       const seen = seenIds.current
       seenIds.current = new Set(list.map(n => n.id))
       // The site is pushing to this browser, and the push shows the same alert
       // whether or not this tab is open - a popup from here would be a second.
-      if (seen === null || !desktopAlertsOn() || bellPushActive()) return
+      if (seen === null || !prefs || !desktopAlertsOn() || bellPushActive()) return
       for (const n of list) {
-        if (seen.has(n.id) || !announceable(n)) continue
+        if (seen.has(n.id) || !announceable(n, prefs)) continue
         try {
           const popup = new window.Notification(n.title, { tag: n.id })
           popup.onclick = () => {

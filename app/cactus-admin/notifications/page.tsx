@@ -7,6 +7,7 @@ import NotificationBulkActions from './NotificationBulkActions'
 import DeployStatusLive from '@/components/admin/DeployStatusLive'
 import VideoJobProgress from '@/components/admin/VideoJobProgress'
 import { isVideoJobInFlight, parseVideoJobNotification } from '@/lib/media/video-job-notification'
+import { getUserNotificationPrefs, visibleNotificationsWhere } from '@/lib/notifications/visibility'
 import { formatInSiteTimezone } from '@/lib/config/timezone'
 import { getSiteTimezone } from '@/lib/config/timezone.server'
 import type { Metadata } from 'next'
@@ -60,8 +61,13 @@ export default async function NotificationsPage() {
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
   const timezone = await getSiteTimezone()
 
+  // Kinds this person has switched off in Settings > Notifications stay out of
+  // the list and the totals alike.
+  const visible = visibleNotificationsWhere(await getUserNotificationPrefs(user.id))
+
   const [notifications, total, unread, pendingDeploy] = await Promise.all([
     prisma.notification.findMany({
+      where: visible,
       orderBy: { createdAt: 'desc' },
       take: NOTIFICATION_LIMIT,
       select: {
@@ -77,8 +83,8 @@ export default async function NotificationsPage() {
         dedupeKey: true,
       },
     }),
-    prisma.notification.count(),
-    prisma.notification.count({ where: { readAt: null } }),
+    prisma.notification.count({ where: visible }),
+    prisma.notification.count({ where: { AND: [{ readAt: null }, visible] } }),
     // Delete all leaves open deployment notifications behind (they are the only
     // record of changes saved but not yet live), so the button has to know how
     // many it would really be removing.
@@ -93,7 +99,7 @@ export default async function NotificationsPage() {
           <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>
             {total} total{unread > 0 ? `, ${unread} unread` : ''}
           </span>
-          <NotificationBulkActions total={total} unread={unread} pendingDeploy={pendingDeploy} />
+          <NotificationBulkActions total={total} unread={unread} pendingDeploy={pendingDeploy} settingsHref={`/${adminPath}/config?tab=notifications`} />
         </div>
       </div>
 

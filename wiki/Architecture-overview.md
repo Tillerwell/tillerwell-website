@@ -351,6 +351,8 @@ On the Notifications page, alerts render a leading icon by type (⬆️ core, �
 
 ### Alerts on admins' devices (Web Push)
 
+**Per-admin choices (Settings > General > Notifications).** `User.notificationPrefs` (jsonb, null = defaults) holds `{ [category]: { show, browser } }` for the categories in `lib/notifications/preferences.ts` (`message`, `alert`, `video`, `core_update`, `module_update`; a video job is a `message` row told apart by its `video-job:` dedupeKey; `deployment` has no category and is always shown). `visibleNotificationsWhere` (`lib/notifications/visibility.ts`) drops switched-off kinds from the bell API, its unread count, the layout badge and the Notifications page. `pushBellAlert` now receives the alert's `type`/`dedupeKey` and sends only to subscriptions whose owner has `show && browser` for that kind; the open-tab popup (`NotificationBell`) applies the same rule from the `prefs` the bell API returns. `GET/PUT /api/admin/notifications/preferences` read and write the caller's own prefs (`config.manage`). Core-reconcile `045`.
+
 A bell entry worth interrupting somebody for - type `message` (a new order, a product question, a finished video) or `alert` (a warning) - is also pushed to every browser an admin has switched alerts on in, so it arrives on a laptop or phone with **no admin tab open**. Update notices and deployment entries stay in the bell only. The rule lives in `lib/push/pushworthy.ts` and is shared with the in-tab popups.
 
 **When:** `upsertAlert` pushes when it **creates** a pushworthy alert, and again only when one that had been **read** comes back unread. An alert still sitting unread has already buzzed once; a progress tick that keeps a read alert read never pushes.

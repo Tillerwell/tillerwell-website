@@ -1,7 +1,6 @@
 import { Prisma, type NotificationType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { videoJobTitle } from '@/lib/media/video-job-notification'
-import { isPushworthy } from '@/lib/push/pushworthy'
 import { pushBellAlert } from '@/lib/push/send'
 
 // Generic on-demand alert helpers. Unlike deployment notifications (which append
@@ -26,6 +25,10 @@ type UpsertAlert = {
   resurfaceOnTitleChangeOnly?: boolean
 }
 
+// Whether anybody is browser-alerted is each admin's own choice (Settings >
+// Notifications, lib/notifications/preferences.ts) and is decided in pushBellAlert,
+// per person; the defaults match the old rule of messages and warnings only.
+
 // Create the alert if none exists; re-surface (mark unread) when the title changes
 // so a notice only re-lights the bell when the underlying state actually changes
 // (e.g. a newer version becomes available). If the title is unchanged we leave it
@@ -47,7 +50,7 @@ export async function upsertAlert({
     const created = await prisma.notification.create({
       data: { type, dedupeKey, title, link: link ?? null, actionLabel: actionLabel ?? null, reasons: jsonReasons, readAt: null },
     })
-    if (isPushworthy(type)) await pushBellAlert({ id: created.id, title, link: created.link })
+    await pushBellAlert({ id: created.id, title, link: created.link, type, dedupeKey })
     return
   }
 
@@ -79,8 +82,8 @@ export async function upsertAlert({
     // unread. One still sitting unread has already buzzed their phone once, and
     // a progress-style alert rewriting its title every few seconds must not
     // buzz it on every tick.
-    if (!keepRead && existing.readAt !== null && isPushworthy(type)) {
-      await pushBellAlert({ id: existing.id, title, link: nextLink })
+    if (!keepRead && existing.readAt !== null) {
+      await pushBellAlert({ id: existing.id, title, link: nextLink, type, dedupeKey })
     }
   }
 }

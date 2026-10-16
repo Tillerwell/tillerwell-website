@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { ALL_PROVIDERS, envKeysForProvider, ALL_CLOUDFLARE_CREDENTIAL_KEYS } from '@/lib/media/providers'
 import { formatModuleDisplayName } from '@/lib/modules/manifest'
@@ -37,8 +38,10 @@ export async function recordDeploymentNeeded(reason: { label: string; detail?: s
   }
 }
 
-export async function getUnreadCount(): Promise<number> {
-  return prisma.notification.count({ where: { readAt: null } })
+// `visible` is the person's own notification preferences (see
+// lib/notifications/visibility.ts): a kind they have switched off does not count.
+export async function getUnreadCount(visible: Prisma.NotificationWhereInput = {}): Promise<number> {
+  return prisma.notification.count({ where: { AND: [{ readAt: null }, visible] } })
 }
 
 const EMAIL_KEYS = new Set(['BREVO_API_KEY', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'])

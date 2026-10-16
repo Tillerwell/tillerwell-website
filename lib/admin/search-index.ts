@@ -66,6 +66,7 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'tab-gdpr', label: 'GDPR & Legal', section: S.general, path: '/config?tab=gdpr', requires: '/config', keywords: ['consent', 'cookies', 'privacy', 'legal', 'data protection'] },
   { id: 'tab-integrations', label: 'Integrations', section: 'Settings', path: '/config?tab=integrations', requires: '/config', keywords: ['github', 'sentry', 'turnstile', 'neon', 'webhook', 'connections', 'api keys'] },
   { id: 'tab-navigation', label: 'Admin menu editor', section: S.general, path: '/config?tab=navigation', requires: '/config', keywords: ['sidebar', 'menu', 'reorder', 'rename', 'admin menu', 'navigation'] },
+  { id: 'tab-notifications', label: 'Notification settings', section: S.general, path: '/config?tab=notifications', requires: '/config', keywords: ['notifications', 'bell', 'browser alert', 'push', 'alerts', 'orders', 'warnings'] },
   { id: 'tab-schedules', label: 'Schedules (timed jobs)', section: S.general, path: '/config?tab=schedules', requires: '/config', keywords: ['cron', 'schedule', 'timer', 'jobs', 'run now', 'how often'] },
   { id: 'general-settings-sidebar', label: 'Show Settings tabs in a sidebar', section: S.general, path: '/config?tab=general#general-settings-sidebar', requires: '/config', keywords: ['sidebar', 'settings layout', 'tabs', 'sub-tabs', 'hide tabs', 'tree'] },
 

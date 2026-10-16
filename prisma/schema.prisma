@@ -48,6 +48,10 @@ model User {
   // Encrypting it would also lose it on every restore into a fresh install,
   // which is a poor trade for a number somebody wants to see and edit.
   phone                   String?
+  // Which admin notifications this person sees in the bell, and which of those
+  // they also want a browser alert for: { [category]: { show, browser } }. null
+  // (or a missing category) means the defaults. See lib/notifications/preferences.ts.
+  notificationPrefs       Json?
 
   passkeys        Passkey[]
   sessions        Session[]

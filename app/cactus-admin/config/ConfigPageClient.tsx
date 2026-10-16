@@ -22,6 +22,7 @@ import MembersGdprClient from './MembersGdprClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
 import NavBuilder from './NavBuilder'
 import ScheduledJobsClient from './ScheduledJobsClient'
+import NotificationsSettingsClient from './NotificationsSettingsClient'
 import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
 import {
   PROVIDER_KIND,
@@ -82,6 +83,7 @@ const GENERAL_PAGES: readonly SubTabDef[] = [
   { key: 'speed', label: 'Speed', anchors: ['speed-page-cache', 'speed-page-cache-window', 'speed-page-cache-long-window', 'speed-edge-window', 'speed-cloudflare', 'speed-image-resizing', 'speed-cloudflare-setup', 'speed-page-cache-purge', 'speed-purge-now', 'general-speed-insights'] },
   { key: 'media', label: 'Media', anchors: ['media-provider', 'media-lazy-load'] },
   { key: 'navigation', label: 'Admin Menu', anchors: [] },
+  { key: 'notifications', label: 'Notifications', anchors: [] },
   { key: 'gdpr', label: 'GDPR & Legal', anchors: ['gdpr-legal', 'gdpr-retention', 'gdpr-banner', 'gdpr-members'] },
   { key: 'schedules', label: 'Schedules', anchors: [] },
   { key: 'backup', label: 'Backup & restore', anchors: ['general-backup', 'general-restore'] },
@@ -1875,6 +1877,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {/* Saves each row on its own, like the admin menu editor - hence no page-level
           Save button (see saveScope). */}
       {tab === 'schedules' && showSchedulesTab && <ScheduledJobsClient />}
+
+      {/* Personal choices, saved on each tick (hence no page-level Save button). */}
+      {tab === 'notifications' && canManageConfig && <NotificationsSettingsClient />}
 
       {tab === 'general' && canManageConfig && (
             <>

@@ -3,6 +3,7 @@ import { getSiteUrlOrNull } from '@/lib/config/env'
 import { getAdminPathCached } from '@/lib/config/site'
 import { BRANDING_DEFAULTS } from '@/lib/config/branding'
 import { hasPermission } from '@/lib/permissions/check'
+import { resolvePrefs, wantsBrowserAlert } from '@/lib/notifications/preferences'
 import { forgetEndpoint, readVapidKeys } from './store'
 import { sendWebPush } from './web-push'
 
@@ -36,6 +37,12 @@ export type BellPush = {
   title: string
   /** Admin-relative, as stored on the notification. */
   link: string | null
+  /** What kind of notification it is, so each person's own choice of what to be
+   *  alerted about (Settings > Notifications) can be honoured. Omitted by a
+   *  caller that pushes straight with no bell entry (the live chat's new-visitor
+   *  nudge), which files under messages. */
+  type?: string
+  dedupeKey?: string | null
 }
 
 /**
@@ -54,12 +61,14 @@ function adminBase(adminPath: string | null): string {
 }
 
 export async function pushBellAlert(alert: BellPush): Promise<void> {
+  const kind = { type: alert.type ?? 'message', dedupeKey: alert.dedupeKey }
   try {
     const subscriptions = await prisma.adminPushSubscription.findMany({
       where: { user: { suspendedAt: null } },
       include: { user: { include: { role: true } } },
     })
     if (subscriptions.length === 0) return
+    if (!subscriptions.some((sub) => wantsBrowserAlert(resolvePrefs(sub.user.notificationPrefs), kind))) return
     // No pair means nobody can have subscribed with one, whatever the table
     // says - and never MADE here: a pair minted by a send nobody asked for
     // would strand every subscription bound to the one that went missing.
@@ -72,9 +81,12 @@ export async function pushBellAlert(alert: BellPush): Promise<void> {
     }
 
     // A role can lose the bell after somebody subscribed; asked afresh per send.
+    // And each person decides which kinds of alert they want a browser nudge for.
     const allowed = new Map<string, boolean>()
     for (const sub of subscriptions) {
-      if (!allowed.has(sub.userId)) allowed.set(sub.userId, await hasPermission(sub.user, BELL_PERMISSION))
+      if (allowed.has(sub.userId)) continue
+      const wanted = wantsBrowserAlert(resolvePrefs(sub.user.notificationPrefs), kind)
+      allowed.set(sub.userId, wanted && await hasPermission(sub.user, BELL_PERMISSION))
     }
 
     const [base, config] = await Promise.all([

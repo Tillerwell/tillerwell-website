@@ -218,21 +218,24 @@ describe('upsertAlert - pushing to admins\' browsers', () => {
   it('pushes a new message as it is created', async () => {
     notification.findFirst.mockResolvedValue(null)
     await upsertAlert({ type: 'message', dedupeKey: 'shop:order:1', title: 'New order DW1', link: '/m/shop/orders/1' })
-    expect(pushBellAlert).toHaveBeenCalledWith({ id: 'n1', title: 'New order DW1', link: '/m/shop/orders/1' })
+    expect(pushBellAlert).toHaveBeenCalledWith({ id: 'n1', title: 'New order DW1', link: '/m/shop/orders/1', type: 'message', dedupeKey: 'shop:order:1' })
   })
 
-  it('pushes a new warning, but never an update notice', async () => {
+  // Who is alerted about what is each admin's own choice, made in pushBellAlert
+  // from the type it is handed; the defaults there skip update notices.
+  it('hands every kind over with its type, for each admin\'s own choices to decide', async () => {
     notification.findFirst.mockResolvedValue(null)
     await upsertAlert({ type: 'alert', dedupeKey: 'a', title: 'Refunds stuck' })
     await upsertAlert({ type: 'module_update', dedupeKey: 'b', title: 'Update available' })
-    expect(pushBellAlert).toHaveBeenCalledTimes(1)
-    expect(pushBellAlert).toHaveBeenCalledWith(expect.objectContaining({ title: 'Refunds stuck' }))
+    expect(pushBellAlert).toHaveBeenCalledTimes(2)
+    expect(pushBellAlert).toHaveBeenCalledWith(expect.objectContaining({ title: 'Refunds stuck', type: 'alert' }))
+    expect(pushBellAlert).toHaveBeenCalledWith(expect.objectContaining({ title: 'Update available', type: 'module_update' }))
   })
 
   it('pushes again when an alert somebody had read comes back unread', async () => {
     notification.findFirst.mockResolvedValue(read)
     await upsertAlert({ type: 'message', dedupeKey: 'shop:order:1', title: 'New order DW1 - paid' })
-    expect(pushBellAlert).toHaveBeenCalledWith({ id: 'n1', title: 'New order DW1 - paid', link: '/m/shop/orders/1' })
+    expect(pushBellAlert).toHaveBeenCalledWith({ id: 'n1', title: 'New order DW1 - paid', link: '/m/shop/orders/1', type: 'message', dedupeKey: 'shop:order:1' })
   })
 
   it('does not push again while the alert is still unread', async () => {

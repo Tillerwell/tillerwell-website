@@ -6,7 +6,7 @@ The configuration page lives at `/<your-admin-path>/config`. All settings are sa
 
 ## How the page is laid out
 
-Along the top are **General**, **Email**, **Integrations**, and a tab for each module that has more than a couple of settings. General holds most of the site-wide plumbing as pages of its own, in this order: **Site**, **Speed**, **Media**, **Admin Menu**, **GDPR & Legal**, **Schedules**, **Backup & restore**, then any module that files its settings under General (Google Tag, SEO and Gazette do), and **Danger zone**, which is always last. Every one of those pages keeps the address it had when it was a tab of its own (`?tab=speed`, `?tab=media` and so on), so old bookmarks still land.
+Along the top are **General**, **Email**, **Integrations**, and a tab for each module that has more than a couple of settings. General holds most of the site-wide plumbing as pages of its own, in this order: **Site**, **Speed**, **Media**, **Admin Menu**, **Notifications**, **GDPR & Legal**, **Schedules**, **Backup & restore**, then any module that files its settings under General (Google Tag, SEO and Gazette do), and **Danger zone**, which is always last. Every one of those pages keeps the address it had when it was a tab of its own (`?tab=speed`, `?tab=media` and so on), so old bookmarks still land.
 
 **Show Settings tabs in a sidebar** (General → Site → Settings page) moves those tabs down the left of the page instead, with the open one unfolded to show its pages or sub-tabs - a module's own sub-tabs included. Tick **Also hide the sub-tabs on every settings page** as well and the rows of sub-tabs come off the top of each page, so the sidebar is the only way round. Both only apply on a screen wide enough for a sidebar; on a phone the tabs stay along the top. Both are saved with the page's Save button and stored in the same place as the admin menu customisations, so they need no database change.
 
@@ -462,3 +462,8 @@ Manage roles and permissions - see [Managing users](Managing-users).
 ---
 
 **Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Shop](Shop) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+
+
+### Settings > General > Notifications
+
+Personal to whoever is signed in (stored on their own user, `User.notificationPrefs`), for anyone who can manage settings. A table of notification kinds - **Messages and orders**, **Warnings**, **Video optimising**, **Cactus updates**, **Module updates** - each with two ticks: **Show me** (in the bell, its unread badge and the Notifications page) and **Browser alert** (a desktop/phone alert, see "Alerts on admins' devices" in the Architecture overview). Each tick saves as it is pressed. Defaults match the old behaviour: everything shown; browser alerts for messages, warnings and video only. "Changes awaiting deployment" is always shown and never pushed, as it is the only route to the Redeploy button. Browser permission is still per browser, so the bell button on this tab (and on the Notifications page) switches alerts on for the browser in front of you. The Notifications page header has a cog that links here.
