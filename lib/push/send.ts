@@ -4,6 +4,7 @@ import { getAdminPathCached } from '@/lib/config/site'
 import { BRANDING_DEFAULTS } from '@/lib/config/branding'
 import { hasPermission } from '@/lib/permissions/check'
 import { resolvePrefs, wantsBrowserAlert } from '@/lib/notifications/preferences'
+import { getNotificationKinds } from '@/lib/notifications/kinds'
 import { forgetEndpoint, readVapidKeys } from './store'
 import { sendWebPush } from './web-push'
 
@@ -61,14 +62,15 @@ function adminBase(adminPath: string | null): string {
 }
 
 export async function pushBellAlert(alert: BellPush): Promise<void> {
-  const kind = { type: alert.type ?? 'message', dedupeKey: alert.dedupeKey }
+  const filed = { type: alert.type ?? 'message', dedupeKey: alert.dedupeKey }
   try {
+    const kinds = await getNotificationKinds()
     const subscriptions = await prisma.adminPushSubscription.findMany({
       where: { user: { suspendedAt: null } },
       include: { user: { include: { role: true } } },
     })
     if (subscriptions.length === 0) return
-    if (!subscriptions.some((sub) => wantsBrowserAlert(resolvePrefs(sub.user.notificationPrefs), kind))) return
+    if (!subscriptions.some((sub) => wantsBrowserAlert(resolvePrefs(sub.user.notificationPrefs, kinds), kinds, filed))) return
     // No pair means nobody can have subscribed with one, whatever the table
     // says - and never MADE here: a pair minted by a send nobody asked for
     // would strand every subscription bound to the one that went missing.
@@ -85,7 +87,7 @@ export async function pushBellAlert(alert: BellPush): Promise<void> {
     const allowed = new Map<string, boolean>()
     for (const sub of subscriptions) {
       if (allowed.has(sub.userId)) continue
-      const wanted = wantsBrowserAlert(resolvePrefs(sub.user.notificationPrefs), kind)
+      const wanted = wantsBrowserAlert(resolvePrefs(sub.user.notificationPrefs, kinds), kinds, filed)
       allowed.set(sub.userId, wanted && await hasPermission(sub.user, BELL_PERMISSION))
     }
 

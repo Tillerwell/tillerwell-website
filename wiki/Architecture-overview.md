@@ -289,6 +289,10 @@ Note that a versioned bucket's own file browser counts superseded versions and d
 
 **Where the size drift came from.** On the direct-upload paths the bytes go from the browser straight to the Worker, so the app never holds them. `/record` hardens everything else about that request against the body - the key must carry a signature this app issued, the content type is derived from that signed key - but `sizeBytes` was still the client's own `file.size`, which describes the file it meant to send rather than the object that landed. `confirmedSizeBytes` now HEADs the object and records the real length, keeping the claimed figure only when the provider cannot say (the body value still serves the size-cap check, which the Worker enforces independently on the PUT).
 
+## Per-kind notification settings
+
+Settings > Notifications lists every kind of notification, core's and each module's. A module declares its own in `cactus.module.json` as `notificationKinds`: `[{ id, label, description?, dedupePrefix, browserDefault? }]`, where `dedupePrefix` is the start of the `dedupeKey` it passes to `upsertAlert`. Core reads this live (`lib/notifications/kinds.ts`), so a module needs no core change. A module with more than one kind is shown as an accordion, closed by default. Anything undeclared files under "Other messages" or "Other warnings", so nothing is ever without a switch. Each admin's choices are keyed by kind id (`{module}:{id}`) in `User.notificationPrefs`; never rename a kind id.
+
 ## Notifications and deferred deployment
 
 Env-var changes accumulate into a single **deployment notification** instead of redeploying on every save. The admin can keep working and click "Redeploy now" when ready, avoiding repeated build cycles. Module install / update / uninstall and core updates do **not** use this notification: pushing a commit (`modules.json` for modules, the upstream sync for core) is what ships their code, so they redeploy immediately and surface live deploy status in the admin (see below).

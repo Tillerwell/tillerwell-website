@@ -1,8 +1,10 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { AdminTooltip } from './Tooltip'
 import { useAdminConfirm } from './useAdminConfirm'
+import { SettingsIcon } from './notification-icons'
 import { BELL_SUBSCRIPTION_PATH, BELL_WORKER_PATH } from '@/lib/push/worker'
 
 // Desktop (browser) alerts for new notifications: the store and the bell
@@ -252,14 +254,19 @@ export function useDesktopAlerts(): { on: boolean; mode: Mode } {
   return { on, mode }
 }
 
-/** The bell button, in its own capsule. Draws nothing in a browser with no
- *  way to be told anything. */
-export function DesktopAlertsToggle({ placement = 'bottom' }: { placement?: 'top' | 'bottom' }) {
+/** The bell button, sharing one capsule with the settings cog. Where the
+ *  browser has no way to be told anything the bell goes, but the cog stays.
+ *  `onSettingsClick` lets a dropdown shut itself as the link is followed. */
+export function DesktopAlertsToggle({ placement = 'bottom', settingsHref, onSettingsClick }: {
+  placement?: 'top' | 'bottom'
+  /** Omit where the cog would only link to the page it is on. */
+  settingsHref?: string
+  onSettingsClick?: () => void
+}) {
   const { on, mode } = useDesktopAlerts()
   // Inline: the bell's dropdown shuts on a press outside itself, and the help
   // dialog has to count as inside.
   const [tell, helpNode] = useAdminConfirm({ inline: true })
-  if (mode === 'unsupported') return null
   const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied'
   const label = mode === 'homescreen'
     ? 'Alerts on this phone: add the site to your Home Screen first'
@@ -270,6 +277,14 @@ export function DesktopAlertsToggle({ placement = 'bottom' }: { placement?: 'top
         : 'Nudge me when a notification arrives, even with this tab closed'
   return (
     <div className="admin-icon-group">
+      {settingsHref && (
+        <AdminTooltip body="Notification settings" placement={placement}>
+          <Link href={settingsHref} className="admin-icon-btn" aria-label="Notification settings" onClick={onSettingsClick}>
+            {SettingsIcon}
+          </Link>
+        </AdminTooltip>
+      )}
+      {mode !== 'unsupported' && (
       <AdminTooltip body={label} placement={placement}>
         <button
           type="button"
@@ -297,6 +312,7 @@ export function DesktopAlertsToggle({ placement = 'bottom' }: { placement?: 'top
           </svg>
         </button>
       </AdminTooltip>
+      )}
       {helpNode}
     </div>
   )

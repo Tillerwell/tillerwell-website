@@ -8,7 +8,6 @@ import DeployStatusLive from './DeployStatusLive'
 import { AdminTooltip } from './Tooltip'
 import { useAdminConfirm } from './useAdminConfirm'
 import { DesktopAlertsToggle, bellPushActive, desktopAlertsOn, prepareBellPush } from './DesktopAlertsToggle'
-import { wantsBrowserAlert, type NotificationPrefs } from '@/lib/notifications/preferences'
 import { BELL_ARRIVED_MESSAGE_TYPE, BELL_OPEN_MESSAGE_TYPE } from '@/lib/push/worker'
 import { DeleteAllIcon, MarkAllReadIcon } from './notification-icons'
 import VideoJobProgress from './VideoJobProgress'
@@ -49,6 +48,8 @@ type Notification = {
   deployInitiatedAt: string | null
   dedupeKey: string | null
   reasons: unknown
+  /** Whether this person wants a browser alert for it (decided server-side). */
+  browserAlert?: boolean
 }
 
 // How often the bell asks the server for new notifications while the tab is in
@@ -56,10 +57,10 @@ type Notification = {
 const POLL_INTERVAL_MS = 60_000
 
 // What is announced to the desktop is each admin's own choice (Settings >
-// Notifications) - the same rule the server's push follows. By default that is
-// messages (an order, a form message) and warnings; deploys are never announced.
-function announceable(n: Notification, prefs: NotificationPrefs): boolean {
-  return wantsBrowserAlert(prefs, n) && n.readAt === null
+// Notifications) - the same rule the server's push follows, decided server-side
+// and sent down as `browserAlert`. Deploys are never announced.
+function announceable(n: Notification): boolean {
+  return n.browserAlert === true && n.readAt === null
 }
 
 // Sentinel key for the whole-list actions in the same loading/error maps the
@@ -373,19 +374,19 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           setCount(data.unreadCount ?? 0)
           setHasAny((data.notifications ?? []).length > 0)
           if (open) setNotifications(data.notifications ?? [])
-          announceNew((data.notifications ?? []) as Notification[], data.prefs as NotificationPrefs | undefined)
+          announceNew((data.notifications ?? []) as Notification[])
         })
         .catch(() => {})
     }
 
-    const announceNew = (list: Notification[], prefs: NotificationPrefs | undefined) => {
+    const announceNew = (list: Notification[]) => {
       const seen = seenIds.current
       seenIds.current = new Set(list.map(n => n.id))
       // The site is pushing to this browser, and the push shows the same alert
       // whether or not this tab is open - a popup from here would be a second.
-      if (seen === null || !prefs || !desktopAlertsOn() || bellPushActive()) return
+      if (seen === null || !desktopAlertsOn() || bellPushActive()) return
       for (const n of list) {
-        if (seen.has(n.id) || !announceable(n, prefs)) continue
+        if (seen.has(n.id) || !announceable(n)) continue
         try {
           const popup = new window.Notification(n.title, { tag: n.id })
           popup.onclick = () => {
@@ -612,7 +613,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
         <span className="admin-bell-dropdown-title">Notifications</span>
         {/* Icons on the right, drawn the way the inbox draws a conversation's
             actions: the two that act on the whole list share one capsule, and
-            the desktop-alerts bell stands on its own at the very end. */}
+            the settings cog and desktop-alerts bell share another at the very end. */}
         <div className="admin-bell-dropdown-header-actions">
           {notifications !== null && notifications.length > 0 && (
             <div className="admin-icon-group" role="group" aria-label="Every notification">
@@ -642,7 +643,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
               </AdminTooltip>
             </div>
           )}
-          <DesktopAlertsToggle />
+          <DesktopAlertsToggle settingsHref={`${base}/config?tab=notifications`} onSettingsClick={() => setOpen(false)} />
         </div>
       </div>
       {actionError[BULK_ACTION_ID] && (

@@ -8,7 +8,7 @@ import { MODULES_IN_BUILD } from '@/lib/modules/router'
 import AdminShell from '@/components/admin/AdminShell'
 import AdminBackgroundServices from '@/components/admin/AdminBackgroundServices'
 import { getUnreadCount } from '@/lib/notifications/deployment'
-import { getUserNotificationPrefs, visibleNotificationsWhere } from '@/lib/notifications/visibility'
+import { getNotificationView } from '@/lib/notifications/visibility'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
 import { sanitizeSvgFragment } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
@@ -69,7 +69,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // links that 404 until its deploy finishes. MODULES_IN_BUILD is that missing half.
     getInstalledModules().catch(() => []),
     // Only the kinds this person has not switched off (Settings > Notifications).
-    getUserNotificationPrefs(user.id).then((prefs) => getUnreadCount(visibleNotificationsWhere(prefs))).catch(() => 0),
+    getNotificationView(user.id).then((view) => getUnreadCount(view.where)).catch(() => 0),
     resolveBranding(),
     // null = never saved server-side, so the sidebar uploads this browser's own list.
     prisma.user.findUnique({ where: { id: user.id }, select: { sidebarFavourites: true } })

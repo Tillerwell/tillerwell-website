@@ -322,6 +322,22 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     export: z.string().min(1),
   }).optional(),
+  // The notifications this module raises (core's bell, via upsertAlert), so each
+  // one gets its own switch on Settings > Notifications instead of all of them
+  // hiding behind "Other messages". `dedupePrefix` is the start of the
+  // dedupeKey the module passes to upsertAlert - a whole key works too, being
+  // its own prefix. `id` is saved against the admin's choice, so never rename
+  // one. A module with several kinds is folded into an accordion there.
+  // Pure data, read live (lib/notifications/kinds.ts); no codegen.
+  notificationKinds: z.array(z.object({
+    id: z.string().regex(/^[a-z][a-z0-9-]*$/, 'notification kind id must be lowercase kebab-case'),
+    label: z.string().min(1),
+    description: z.string().optional(),
+    dedupePrefix: z.string().min(1),
+    // Whether a browser alert is on until the admin says otherwise. Defaults on,
+    // as every module alert was before this existed.
+    browserDefault: z.boolean().optional(),
+  })).default([]),
   // Declarative contributions to the core Members system (see MEMBERS_SPEC.md
   // amendment 5). Pure data, read live from this manifest at request time by
   // core Members code (lib/modules/member-extensions.ts) - no codegen step,

@@ -5,7 +5,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { getUnreadCount } from '@/lib/notifications/deployment'
-import { getUserNotificationPrefs, visibleNotificationsWhere } from '@/lib/notifications/visibility'
+import { getNotificationView } from '@/lib/notifications/visibility'
+import { wantsBrowserAlert } from '@/lib/notifications/preferences'
 
 // The notification bell polls this route from every open admin tab and renders
 // the five most recent items, so it reads a small, explicit slice - not the whole
@@ -18,10 +19,10 @@ export async function GET() {
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
 
   // What this person has switched off in Settings > Notifications stays out of
-  // the list and the badge. `prefs` goes down too, so the bell knows which of
-  // the rest to pop a browser alert up for.
-  const prefs = await getUserNotificationPrefs(user.id)
-  const visible = visibleNotificationsWhere(prefs)
+  // the list and the badge. Each row also says whether this person wants a
+  // browser alert for it, so the bell knows which to pop up without carrying
+  // the list of kinds around.
+  const { kinds, prefs, where: visible } = await getNotificationView(user.id)
 
   const [notifications, unreadCount] = await Promise.all([
     prisma.notification.findMany({
@@ -46,7 +47,10 @@ export async function GET() {
     getUnreadCount(visible),
   ])
 
-  return NextResponse.json({ notifications, unreadCount, prefs })
+  return NextResponse.json({
+    notifications: notifications.map((n) => ({ ...n, browserAlert: wantsBrowserAlert(prefs, kinds, n) })),
+    unreadCount,
+  })
 }
 
 const PatchAllBody = z.object({

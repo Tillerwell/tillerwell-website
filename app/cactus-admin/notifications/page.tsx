@@ -7,7 +7,7 @@ import NotificationBulkActions from './NotificationBulkActions'
 import DeployStatusLive from '@/components/admin/DeployStatusLive'
 import VideoJobProgress from '@/components/admin/VideoJobProgress'
 import { isVideoJobInFlight, parseVideoJobNotification } from '@/lib/media/video-job-notification'
-import { getUserNotificationPrefs, visibleNotificationsWhere } from '@/lib/notifications/visibility'
+import { getNotificationView } from '@/lib/notifications/visibility'
 import { formatInSiteTimezone } from '@/lib/config/timezone'
 import { getSiteTimezone } from '@/lib/config/timezone.server'
 import type { Metadata } from 'next'
@@ -63,7 +63,7 @@ export default async function NotificationsPage() {
 
   // Kinds this person has switched off in Settings > Notifications stay out of
   // the list and the totals alike.
-  const visible = visibleNotificationsWhere(await getUserNotificationPrefs(user.id))
+  const { where: visible } = await getNotificationView(user.id)
 
   const [notifications, total, unread, pendingDeploy] = await Promise.all([
     prisma.notification.findMany({
