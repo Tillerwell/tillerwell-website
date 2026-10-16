@@ -1,3 +1,4 @@
+Last updated: 2026-10-16 (**`social-hub` - a new module: Facebook and LinkedIn pages in one admin page** (v0.1.0, repo `cactus-foundation-modules/social-hun`; core change is only the pin in `modules.json`, the card art `public/module-art/social-hun.webp`, one README line, `wiki/Social-Hub.md` + a `wiki/Home.md` row and `plans/module-card-art-prompts.md` #39). See the `## social-hub` section.)
 Last updated: 2026-10-15 (**shop - Product Grid filter bar is per device** (uncommitted): `categoryBar` is now a `ResponsiveSelectField` value (`{desktop,tablet,mobile}`; a legacy plain 'yes'/'no' means every device). `parts/category-bar-css.ts` gains `categoryBarDevices()` and `categoryBarVisibilityCss(id, flags)` (hides `.shop-catbar` per breakpoint, scoped by `data-catbar-id` = Puck block id). `ShopProductGridProps.id` added.)
 Last updated: 2026-10-15 (**Puck Feature List - extra small padding**: `paddingY` gains `xs` (1rem) via `FEATURE_LIST_PADDING_Y_OPTIONS`; other blocks' lists unchanged. **Puck Feature List - glyph colours**: `glyphBgColor` (the square, default `--color-primary`) and `glyphColor` (the icon, default `--color-bg`), both `SiteColourField` with a dark-mode arm via `light-dark()`; glyph style only.)
 Last updated: 2026-10-15 (**Puck Section - `bottomMargin`**: per-device (`ResponsiveSelectField`, `SECTION_BOTTOM_MARGIN_OPTIONS`) override of the last block's own bottom margin, written as a `!important` rule on `[data-section-id] > :last-child` down four levels. `default` writes no rule. A tablet/mobile `default` after a desktop value keeps the desktop value.)
@@ -1218,6 +1219,26 @@ New module at `cactus-foundation-modules/live-chat`, pinned in core:
 **Transcripts.** `widget/end` with `transcript: true` emails the chat in the site's email wrapper, attachments as signed links; claimed once per chat (`transcript_sent_at`), released if the send fails.
 
 **Not run:** `npm run test:backup-roundtrip` (needs the OVH VPS credentials). The migration was applied twice to a throwaway local Postgres; `schema-coverage.test.ts` passes.
+
+---
+
+## social-hub - a new module: Facebook and LinkedIn pages in one admin page (v0.1.0)
+
+New module. Folder `modules/social-hub`, repo slug **`social-hun`** (the name Chris gave; the manifest `name` is `social-hub`, so the card art is `public/module-art/social-hun.webp` by slug). Pinned in core: `{ "name": "social-hub", "repoUrl": "https://github.com/cactus-foundation-modules/social-hun", "version": "v0.1.0" }`.
+
+**What it is.** One sidebar link, **Social Hub** (`/m/social-hub`, permission `socialhub.view`), a single page with a page-filter chip row, a segmented control (**Published / Scheduled / Drafts / Needs attention**) and a **New post** bottom-sheet composer. Settings: `settingsTabs` entry `social-hub` ("Social Hub", `socialhub.manage`) with sub-tabs via `TabStrip` + `useTabParam('view')`: `accounts`, `facebook`, `linkedin`, `publishing`, `help` - the Facebook and LinkedIn tabs carry the step-by-step developer-app guides and the app-credential boxes, one Save in the sticky bar. iOS look: `components/admin/hub/hub.css` (`shub-` prefix, tokens only, uses only ground pairs that differ in both themes).
+
+**Permissions.** `socialhub.view`, `socialhub.post`, `socialhub.manage`. **Env.** `ENCRYPTION_KEY` (required, already core's). **Cron.** `/api/m/social-hub/cron/publish` (`*/5 * * * *`) and `/api/m/social-hub/cron/sync` (`25 * * * *`).
+
+**Tables** (`migrations/001_initial.sql`, prefix `shub_`, teardown child-first): `shub_settings` (singleton, `fb_app_id`, `fb_app_secret_enc`, `fb_config_id`, `li_client_id`, `li_client_secret_enc`), `shub_connections` (provider facebook|linkedin, `external_id`, tokens encrypted, `status` active|needs_reauth), `shub_posts` (status draft|scheduled|publishing|published|partial|failed, `images` jsonb), `shub_post_targets` (one per page per post), `shub_remote_posts` (cache of what is on each page). Foreign keys cascade from connections.
+
+**Routes** (all `app/api/...` => `/api/m/social-hub/...`): `admin/settings` (GET/PATCH, manage), `admin/accounts` (GET) and `admin/accounts/[id]` (DELETE, manage), `admin/feed`, `admin/sync` (POST, post), `admin/posts` (GET/POST), `admin/posts/[id]` (GET/PATCH/DELETE), `admin/posts/[id]/publish`, `admin/link-preview`, `admin/image` (remote-picture proxy, because the site CSP allows no third-party image hosts), `oauth/[provider]/start` and `oauth/[provider]/callback`, `cron/publish`, `cron/sync`.
+
+**Moving parts.** `lib/facebook.ts` (Graph v24: feed / photos / unpublished-photos + `attached_media`; optional `config_id` for Facebook Login for Business), `lib/linkedin.ts` (REST Posts API, `LI_API_VERSION` 202510, Images API, article thumbnail, token refresh), `lib/linkedin-text.ts` (escapes little-text characters - an unescaped bracket truncates a post), `lib/publish.ts` + `lib/posts.ts` (claim with `FOR UPDATE SKIP LOCKED`, per-target status, retry only failed targets, stale-run release after 15 min), `lib/sync.ts` (cache + prune + feed query), `lib/safe-fetch.ts` (public-address check at every redirect hop), `lib/link-preview.ts`, `lib/oauth-state.ts` (sealed 10-minute cookie bound to person and network), `lib/alerts.ts` (one rolling bell notification `social-hub:attention`).
+
+**Tests.** `lib/social-hub.test.ts` (39, runs in `npm test`). `lib/social-hub.live.test.ts` (11) runs the raw SQL and the whole publish path with a stubbed network against a throwaway `cactus_rt_*` database: `RUN_SOCIAL_HUB_LIVE=1`, needs `OVH_*` exported from the Deskwell `.env`; a skip is a fail. The backup round-trip gate was also run (it adds a module with new tables) and passed.
+
+**Not verified.** Nothing has been run against the real Facebook or LinkedIn APIs (no developer apps exist yet), and nothing was looked at in a browser. The first real connection is the first real test of the OAuth scopes and of LinkedIn's Community Management API approval.
 
 ---
 

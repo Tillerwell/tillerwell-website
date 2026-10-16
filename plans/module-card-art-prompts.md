@@ -1,6 +1,6 @@
 # Cactus module card art - image generator prompts
 
-38 images, one per module. All share one style block so the set reads as a family.
+39 images, one per module. All share one style block so the set reads as a family.
 
 ## Spec
 
@@ -257,4 +257,10 @@ Four rounded cream clay sofa seats joined into a neat L-shape on a low pale sand
 
 ```
 A single rounded cream clay speech bubble with its tail pointing down to the lower left, a small terracotta notification dot sitting on its top-right edge, and a tiny clay paperclip resting against its side. 3D render, soft matte clay / plasticine materials, rounded edges, no sharp corners, no glossy highlights. A single object, centred, three-quarter view from slightly above, occupying about 55% of the frame height with generous even margins on all sides. Background: smooth deep forest-green gradient running from #1a4c3a in the top-left to #0e2a1e in the bottom-right, edge to edge, fully opaque, no transparency, no alpha channel. Soft warm key light from the upper left, cool green fill from the lower right, one soft contact shadow under the object. Colour palette strictly limited to forest greens #2c7558 #1a4c3a #133929, warm cream #faf9f7, pale sand #d2cdbf, and a single terracotta accent #e05232 used on one focal detail only. Faint soft radial glow behind the object. Very fine film grain over the whole image. No text, no letters, no numbers, no logos, no watermarks, no user interfaces, no screenshots, no people, no hands, no brand marks. Aspect ratio 16:9.
+```
+
+## 39. Social Hub -> `social-hub.webp`
+
+```
+A cream clay megaphone resting on a low pale sand clay calendar slab with a soft grid of shallow squares pressed into its top, a single rounded terracotta paper plane launching from the megaphone's mouth. 3D render, soft matte clay / plasticine materials, rounded edges, no sharp corners, no glossy highlights. A single object, centred, three-quarter view from slightly above, occupying about 55% of the frame height with generous even margins on all sides. Background: smooth deep forest-green gradient running from #1a4c3a in the top-left to #0e2a1e in the bottom-right, edge to edge, fully opaque, no transparency, no alpha channel. Soft warm key light from the upper left, cool green fill from the lower right, one soft contact shadow under the object. Colour palette strictly limited to forest greens #2c7558 #1a4c3a #133929, warm cream #faf9f7, pale sand #d2cdbf, and a single terracotta accent #e05232 used on one focal detail only. Faint soft radial glow behind the object. Very fine film grain over the whole image. No text, no letters, no numbers, no logos, no watermarks, no user interfaces, no screenshots, no people, no hands, no brand marks. Aspect ratio 16:9.
 ```
