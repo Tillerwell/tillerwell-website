@@ -209,6 +209,12 @@ export type ConversationProvider = {
      *  channel that cannot carry one is offering a button that quietly does
      *  nothing. */
     textStyles?: ConversationTextStyles
+    /** Whether this channel shows `[words](https://address)` in a message as
+     *  the words, linked. A consumer putting a product in a reply then writes
+     *  the product's name as a link rather than printing the bare address
+     *  beside it; a channel that does not declare it is sent the bare address,
+     *  which is the honest default - markdown shown raw is worse than a URL. */
+    markdownLinks?: boolean
     /** Whether this channel's conversations are answered BY EMAIL - an enquiry
      *  off a form, say. A consumer may then treat them as mail: let the
      *  subject of a reply be changed (`send` is handed it) and let a message
