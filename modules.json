@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.505"
+      "version": "v0.1.506"
     },
     {
       "name": "address-lookup-for-shop",
@@ -183,7 +183,7 @@
     {
       "name": "pay-via-worldfirst-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/pay-via-worldfirst-for-shop",
-      "version": "v0.1.4"
+      "version": "v0.1.5"
     }
   ]
 }
