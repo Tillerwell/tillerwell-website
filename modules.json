@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.498"
+      "version": "v0.1.499"
     },
     {
       "name": "address-lookup-for-shop",
@@ -108,7 +108,7 @@
     {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.21"
+      "version": "v0.1.22"
     },
     {
       "name": "boards",
@@ -118,12 +118,12 @@
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.38"
+      "version": "v0.1.39"
     },
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.47"
+      "version": "v0.1.50"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -168,7 +168,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.127"
+      "version": "v0.1.128"
     },
     {
       "name": "google-ai-studio",
