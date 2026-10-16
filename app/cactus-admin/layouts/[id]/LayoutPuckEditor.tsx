@@ -21,7 +21,7 @@ import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import OutlineTree from '@/lib/puck/outline/OutlineTree'
-import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
+import { createTabbedFieldsOverride } from '@/lib/puck/tabs/TabbedFieldsOverride'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
 import { EditorDirtyProvider } from '@/lib/puck/tabs/editorDirtyState'
 import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
@@ -194,7 +194,9 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         deleting,
         canDelete,
       }),
-      ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
+      fields: createTabbedFieldsOverride({
+        hideWhenNothingSelected: !(baseConfig as { root?: { fields?: unknown } }).root?.fields,
+      }),
       outline: OutlineTree,
       puck: createViewportDropdownOverride(puckViewports, { shrinkPreview: layoutType === 'header' }),
     }),

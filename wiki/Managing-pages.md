@@ -59,6 +59,10 @@ This is a different thing from hiding a block on certain screens (the show/hide-
 
 ---
 
+## Block settings are grouped into tabs
+
+A block with a long list of settings splits them into three tabs at the top of the settings panel: **Block** (the text, links, images and switches that make the block what it is), **Appearance** (fonts, colours, borders, shadows, animation) and **Layout** (spacing, widths, alignment, showing and hiding by screen size). The tab you last used stays selected as you click from block to block. Blocks with only a few settings skip the tabs and show one short list. The same tabs appear in the layout editor, the Gazette and Directory editors, shop product descriptions and the email signature editors.
+
 ## Sizes, colours, and settings that stay out of your way
 
 Three things hold across every block's settings panel:

@@ -1,0 +1,67 @@
+/*
+ * Block / Appearance / Layout tab strip in Puck's right-hand field panel (see
+ * TabbedFieldsOverride.tsx). Colours come from the --puck-color-* set globals.css already
+ * maps for light and dark, so the strip follows the theme with no hex in here. The strip
+ * sticks to the top of the scrolling sidebar so it is still reachable halfway down a long
+ * Block tab.
+ */
+.cactus-field-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cactus-field-tabs__strip {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  margin: -16px -16px 0;
+  padding: 8px 16px 0;
+  background: var(--puck-color-surface, var(--color-surface));
+  border-bottom: 1px solid var(--puck-color-border, var(--color-border));
+}
+
+.cactus-field-tabs__tab {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--puck-color-text-secondary, var(--color-text-secondary));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cactus-field-tabs__tab:hover {
+  color: var(--puck-color-text, var(--color-text));
+}
+
+.cactus-field-tabs__tab[aria-selected='true'] {
+  color: var(--puck-color-text, var(--color-text));
+  border-bottom-color: var(--color-primary);
+}
+
+.cactus-field-tabs__tab:focus-visible {
+  outline: 2px solid var(--color-border-focus, var(--color-primary));
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.cactus-field-tabs__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cactus-field-tabs__panel[hidden] {
+  display: none;
+}

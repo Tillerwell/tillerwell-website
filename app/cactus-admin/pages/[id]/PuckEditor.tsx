@@ -14,6 +14,7 @@ import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import { tabbedFieldsOverride } from '@/lib/puck/tabs/TabbedFieldsOverride'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
 import { EditorDirtyProvider } from '@/lib/puck/tabs/editorDirtyState'
 import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
@@ -381,6 +382,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       onDeleteClick,
       deleting,
     }),
+    fields: tabbedFieldsOverride,
     outline: OutlineTree,
     puck: createViewportDropdownOverride(puckViewports),
   }), [backHref, pageId, onDeleteClick, deleting, puckViewports])
