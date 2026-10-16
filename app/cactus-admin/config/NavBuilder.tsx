@@ -45,6 +45,7 @@ const PREF_ROWS: Array<{ key: keyof SidebarPrefs; label: string }> = [
   { key: 'showRecents', label: 'Show recently visited pages' },
   { key: 'showFavourites', label: 'Show favourites' },
   { key: 'favouritesSticky', label: 'Keep favourites pinned at the top while the menu scrolls' },
+  { key: 'hideFavouritesFromTree', label: 'Hide links shown in favourites from the full list, so none repeat' },
   { key: 'showTools', label: 'Show the menu tools (filter, New, collapse all)' },
   { key: 'linksInAccordion', label: 'Hide all links behind a “View all” accordion' },
   { key: 'showVersion', label: 'Show the Cactus Foundation version at the bottom' },
@@ -220,9 +221,10 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
       <div className="navb-prefs">
         <div className="navb-prefs-title">Sidebar display</div>
         {PREF_ROWS.map((row) => {
-          if (row.key === 'favouritesSticky' && !prefs.showFavourites) return null
+          const nested = row.key === 'favouritesSticky' || row.key === 'hideFavouritesFromTree'
+          if (nested && !prefs.showFavourites) return null
           return (
-            <label key={row.key} className={`settings-check${row.key === 'favouritesSticky' ? ' navb-pref--nested' : ''}`}>
+            <label key={row.key} className={`settings-check${nested ? ' navb-pref--nested' : ''}`}>
               <input
                 type="checkbox"
                 checked={prefs[row.key]}

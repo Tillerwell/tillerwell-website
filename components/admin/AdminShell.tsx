@@ -19,6 +19,8 @@ type Props = {
   children: React.ReactNode
   sections: ResolvedNavSection[]
   sidebarPrefs?: SidebarPrefs
+  /** This person's server-saved favourites; null = never saved. */
+  savedFavourites?: string[] | null
   moduleSettingsTabs?: Array<{ id: string; label: string }>
   unreadCount?: number
   faviconUrl?: string | null
@@ -30,7 +32,7 @@ type Props = {
   sessionExpiresInMs?: number
 }
 
-export default function AdminShell({ adminPath, siteName, version, children, sections, sidebarPrefs, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, logoUrl, logoDarkUrl, sessionExpiresInMs }: Props) {
+export default function AdminShell({ adminPath, siteName, version, children, sections, sidebarPrefs, savedFavourites, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, logoUrl, logoDarkUrl, sessionExpiresInMs }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -217,6 +219,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
             version={version}
             sections={sections}
             prefs={sidebarPrefs}
+            savedFavourites={savedFavourites}
             collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
           />

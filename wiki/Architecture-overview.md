@@ -1429,3 +1429,5 @@ If two copies of a listening block can end up on one page, the listener must cla
 ---
 
 **Wiki:** [Home](Home) · [Getting started](Getting-started) · [Running locally](Running-locally) · [Architecture overview](Architecture-overview) · [Members](Members) · [Authoring a module](Authoring-a-module) · [Authoring a theme](Authoring-a-theme) · [Self-hosting and operations](Self-hosting-and-operations)
+
+**Sidebar favourites follow the person.** `User.sidebarFavourites` (jsonb array of nav item ids, in pinned order; null = never saved) is read by the admin layout and handed to `AdminNav`. A non-null list wins and is mirrored into the browser's localStorage; null makes the sidebar upload the favourites that browser already held, order intact, so nothing is lost on the update that introduces this. Each star or drag saves through `PUT /api/admin/nav-favourites` (own row, any signed-in admin). Core-reconcile `046`.

@@ -14,6 +14,7 @@ import { sanitizeSvgFragment } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
 import { getSiteConfig } from '@/lib/config/site'
 import { prisma } from '@/lib/db/prisma'
+import { parseFavourites } from '@/lib/nav/favourites'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
@@ -60,7 +61,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // to the same empty/absent value the layout already tolerates - config is read
   // through `?.`, an empty module list just drops module nav, zero unread hides the
   // badge. resolveBranding already self-guards (returns the Cactus defaults).
-  const [config, activeModules, unreadCount, branding] = await Promise.all([
+  const [config, activeModules, unreadCount, branding, savedFavourites] = await Promise.all([
     getSiteConfig().catch(() => null),
     // Installed here AND present in this build. Unlike the extension-point call sites,
     // nav entries come straight off the stored manifest with no generated registry to
@@ -70,6 +71,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // Only the kinds this person has not switched off (Settings > Notifications).
     getUserNotificationPrefs(user.id).then((prefs) => getUnreadCount(visibleNotificationsWhere(prefs))).catch(() => 0),
     resolveBranding(),
+    // null = never saved server-side, so the sidebar uploads this browser's own list.
+    prisma.user.findUnique({ where: { id: user.id }, select: { sidebarFavourites: true } })
+      .then((row) => parseFavourites(row?.sidebarFavourites))
+      .catch(() => null),
   ])
 
   const liveModules = activeModules.filter((mod) => MODULES_IN_BUILD.has(mod.name))
@@ -196,6 +201,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         version={pkg.version}
         sections={menuSections}
         sidebarPrefs={sidebarPrefs}
+        savedFavourites={savedFavourites}
         moduleSettingsTabs={moduleSettingsTabs}
         unreadCount={unreadCount}
         faviconUrl={branding.faviconUrl}

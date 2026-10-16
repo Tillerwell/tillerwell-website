@@ -40,6 +40,7 @@ CREATE TABLE "User" (
     "smsOtpPhoneEncrypted" TEXT,
     "phone" TEXT,
     "notificationPrefs" JSONB,
+    "sidebarFavourites" JSONB,
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 

@@ -14,6 +14,8 @@ type Props = {
   sections: ResolvedNavSection[]
   /** Site-wide sidebar display choices (Settings > Admin Menu). */
   prefs?: SidebarPrefs
+  /** This person's favourites saved on the server (follows them across devices); null = never saved. */
+  savedFavourites?: string[] | null
   collapsed?: boolean
   onNavClick?: () => void
 }
@@ -113,13 +115,25 @@ const MAX_RECENTS = 5
 
 type RecentEntry = { path: string; label: string }
 
+/** Fire-and-forget save of the favourites list to this person's account. */
+function saveFavouritesRemote(favourites: string[]) {
+  fetch('/api/admin/nav-favourites', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ favourites }),
+    keepalive: true,
+  }).catch(() => {
+    // offline or signed out: the browser copy still holds the list
+  })
+}
+
 function restrictedLabel(mode: NavVisibilityMode): string {
   if (mode === 'hidden') return 'Hidden from the sidebar for everyone but administrators'
   if (mode === 'admin') return 'Only administrators can see this'
   return 'Only selected roles can see this'
 }
 
-export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT_SIDEBAR_PREFS, collapsed, onNavClick }: Props) {
+export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT_SIDEBAR_PREFS, savedFavourites = null, collapsed, onNavClick }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
   const navRef = useRef<HTMLElement>(null)
@@ -170,14 +184,28 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
       const rawSections = localStorage.getItem(SECTIONS_COLLAPSE_KEY)
       // eslint-disable-next-line react-hooks/set-state-in-effect -- read after mount, not in the initialiser, or first client render diverges from server HTML
       if (rawSections) setCollapsedSections(JSON.parse(rawSections))
-      const rawFav = localStorage.getItem(FAVOURITES_KEY)
-      if (rawFav) setFavourites(JSON.parse(rawFav))
+      if (savedFavourites !== null) {
+        // The account's copy wins, so every browser agrees. Mirror it locally.
+        setFavourites(savedFavourites)
+        localStorage.setItem(FAVOURITES_KEY, JSON.stringify(savedFavourites))
+      } else {
+        // Never saved on the server: keep what this browser already has, in order,
+        // and upload it so it follows this person from now on.
+        const rawFav = localStorage.getItem(FAVOURITES_KEY)
+        const local: unknown = rawFav ? JSON.parse(rawFav) : null
+        if (Array.isArray(local) && local.length > 0) {
+          const ids = local.filter((id): id is string => typeof id === 'string')
+          setFavourites(ids)
+          saveFavouritesRemote(ids)
+        }
+      }
       const rawRecent = localStorage.getItem(RECENTS_KEY)
       if (rawRecent) setRecents(JSON.parse(rawRecent))
       if (localStorage.getItem(ALL_LINKS_OPEN_KEY) === 'true') setAllLinksOpen(true)
     } catch {
       // ignore malformed cache
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-off hydrate on mount; the prop is the server's value at page load
   }, [])
 
   const isActive = useCallback(
@@ -271,6 +299,7 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
     } catch {
       // ignore
     }
+    saveFavouritesRemote(next)
     return next
   }, [])
 
@@ -474,6 +503,10 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
     .map((id) => itemsById.get(id))
     .filter((i): i is ResolvedNavItem => !!i)
 
+  // Pinned links drop out of the tree when asked, so nothing shows twice. Filter
+  // results and drag-and-drop still see every item.
+  const hiddenFromTree = prefs.hideFavouritesFromTree ? new Set(favouriteItems.map((i) => i.id)) : null
+
   const favouritesBlock =
     (collapsed || !filterQuery) && favouriteItems.length > 0 ? (
       <div className={prefs.favouritesSticky ? 'admin-nav-pinned-favs' : 'admin-nav-favs-flow'}>
@@ -618,12 +651,14 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
           {/* Real sections - filtered by the server, then ordered by this user */}
           {treeOpen && orderedSections.map((section, sectionIndex) => {
             const open = collapsed || !section.label || !collapsedSections[section.label]
+            const treeItems = hiddenFromTree ? section.items.filter((i) => !hiddenFromTree.has(i.id)) : section.items
+            if (hiddenFromTree && section.items.length > 0 && treeItems.length === 0 && !reorder.isDraggingTree) return null
             const emptyTarget = reorder.isDraggingTree && open && section.items.length === 0
             return (
               <div key={section.id}>
                 {sectionIndex > 0 && collapsed && <div className="admin-nav-divider" />}
                 {!collapsed && section.label && renderSectionHeader(section.label, section.label, null, open, section.id)}
-                {open && section.items.map((item) => renderItem(item, section.id, 'tree'))}
+                {open && treeItems.map((item) => renderItem(item, section.id, 'tree'))}
                 {/* A section you have just emptied still needs somewhere to aim at. */}
                 {emptyTarget && (
                   <div

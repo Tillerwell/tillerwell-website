@@ -136,6 +136,7 @@ export const AdminMenuConfigSchema = z.object({
       showRecents: z.boolean().optional(),
       showFavourites: z.boolean().optional(),
       favouritesSticky: z.boolean().optional(),
+      hideFavouritesFromTree: z.boolean().optional(),
       showTools: z.boolean().optional(),
       showVersion: z.boolean().optional(),
       linksInAccordion: z.boolean().optional(),
@@ -149,6 +150,8 @@ export type SidebarPrefs = {
   showFavourites: boolean
   /** Favourites stay pinned under the tools while the rest scrolls. Only meaningful with favourites on. */
   favouritesSticky: boolean
+  /** Links pinned to Favourites are left out of the full link tree, so none appear twice. Only meaningful with favourites on. */
+  hideFavouritesFromTree: boolean
   /** Filter box, New menu, reset-order and collapse-all row. */
   showTools: boolean
   /** The "Cactus Foundation vX" button at the foot of the sidebar. */
@@ -161,6 +164,7 @@ export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {
   showRecents: true,
   showFavourites: true,
   favouritesSticky: true,
+  hideFavouritesFromTree: false,
   showTools: true,
   showVersion: true,
   linksInAccordion: false,
@@ -172,6 +176,7 @@ export function resolveSidebarPrefs(config: AdminMenuConfig): SidebarPrefs {
     showRecents: p.showRecents ?? DEFAULT_SIDEBAR_PREFS.showRecents,
     showFavourites: p.showFavourites ?? DEFAULT_SIDEBAR_PREFS.showFavourites,
     favouritesSticky: p.favouritesSticky ?? DEFAULT_SIDEBAR_PREFS.favouritesSticky,
+    hideFavouritesFromTree: p.hideFavouritesFromTree ?? DEFAULT_SIDEBAR_PREFS.hideFavouritesFromTree,
     showTools: p.showTools ?? DEFAULT_SIDEBAR_PREFS.showTools,
     showVersion: p.showVersion ?? DEFAULT_SIDEBAR_PREFS.showVersion,
     linksInAccordion: p.linksInAccordion ?? DEFAULT_SIDEBAR_PREFS.linksInAccordion,

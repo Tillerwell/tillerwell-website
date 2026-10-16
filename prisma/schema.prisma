@@ -52,6 +52,10 @@ model User {
   // they also want a browser alert for: { [category]: { show, browser } }. null
   // (or a missing category) means the defaults. See lib/notifications/preferences.ts.
   notificationPrefs       Json?
+  // Admin sidebar favourites, as an ordered array of nav item ids, so they follow
+  // this person across browsers and devices. null = never saved: the sidebar then
+  // uploads whatever this browser already had (see lib/nav/favourites.ts).
+  sidebarFavourites       Json?
 
   passkeys        Passkey[]
   sessions        Session[]
