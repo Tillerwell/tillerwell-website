@@ -54,12 +54,28 @@ A visitor's trail is deleted a week after they were last on the site.
 
 ## Answering chats
 
-- **Inbox > Live chat** in the admin: open and ended chats down the side, the conversation beside them. Reply, attach files, end or reopen a chat, or delete it for good.
+- **Inbox > Live chat** in the admin: open and ended chats down the side, the conversation beside them (one at a time on a phone). Reply, attach files, end a chat, or delete it for good. A search box at the top of the list finds a chat by name, email or what was said, or a visitor by name or page.
 - **On the site itself**: while you are signed in, you see your own bubble instead of the visitor's. It lists the chats waiting for you and lets you answer without leaving the page. New messages pop up above it while it is shut.
 - **The Unified Inbox**, if you have it: chats appear there the moment they are sent and can be answered from there too.
 - Waiting chats light the **bell**, and anyone with desktop alerts switched on gets a notification.
 
 Replies go out under your display name, first name only.
+
+### It keeps itself up to date
+
+Nothing in the chat window needs a reload, or closing and opening again, to catch up:
+
+- New messages, chats starting and ending, unread counts, who is on the site and the Online switch all update by themselves within a few seconds, and straight away when you come back to the tab.
+- Anything you do (reply, read, end, delete, flip the switch) shows at once in every other place you have the chat open in the same browser, in this tab or another.
+- **Typing…** shows both ways: you see when the visitor is typing, and they see "Sam is typing…" while you are. It stops a few seconds after the typing does.
+- Under your latest reply it says **Seen** once the visitor has had it on screen, or **Sent** until then.
+- A chat that is only your automatic welcome or basket message, with nothing said since, stays in the list while that visitor is on the site and drops out when they leave without answering. It is not deleted: if they come back it reappears, and if they reply (or you do) it becomes an ordinary chat and stays.
+- Each chat in the list shows whether the visitor is still on the site (the dot), how many messages are unread, and **Waiting 4 min** when they have written and nobody has answered yet.
+- Scrolled up to read something? The chat leaves you there, and a **New message** button takes you back down when something arrives.
+- Half-typed replies are kept per chat while you hop between them. Anything you type while a message is still sending is kept too.
+- Paste a screenshot or drop a file onto the reply box to attach it.
+- The browser tab's title carries the number of chats waiting, so you can see it from the tab strip.
+- If the connection drops, the chat says so and carries on as soon as it is back.
 
 ## Going offline, and the phone bar
 
@@ -71,7 +87,7 @@ Replies go out under your display name, first name only.
 | Key | Lets somebody |
 | --- | --- |
 | `chat.view` | read chats, see the admin bubble on the site and see who is on the site |
-| `chat.reply` | reply to, end and reopen chats, and message a visitor first |
+| `chat.reply` | reply to and end chats, and message a visitor first |
 | `chat.manage` | change settings and delete chats |
 
 ## Keeping and deleting
@@ -81,7 +97,8 @@ Chats with nothing said in them for longer than the number of months you set (12
 ## For developers
 
 - Module name `chat`, table prefix `chat_`: `chat_settings` (including `agent_online`, `hide_bubble_on_mobile`, `away_label`, `away_message`, `track_visitors`), `chat_conversations` (including `visitor_id`, `started_by`), `chat_visitors`, `chat_messages` (ids from the sequence `chat_messages_id_seq`), `chat_attachments`.
-- **Live on serverless means polling.** The visitor's widget asks for messages after the last id it holds every 3 seconds while open and 12 while shut; admin views every 3-5 seconds; everything slows down when the tab is hidden.
+- **Live on serverless means polling.** The visitor's widget asks for messages after the last id it holds every 3 seconds while open and 12 while shut; admin views every 3-5 seconds; everything slows down when the tab is hidden. The admin side polls through one hook (`components/live.ts` `usePolling`): never two requests at once, an immediate re-poll on `visibilitychange`, window `focus` and `online`, and on a nudge - `nudgeAdmin()` after any action, delivered to the same tab by a window event and to other tabs on the `cactus-chat-admin` BroadcastChannel. The open thread hands each poll's conversation to the list (`patch`), so unread dots clear without waiting for the list's own poll; the poll answer carries the post-read state. A sent message is merged by id and never moves the poll's `after` cursor, so a message that landed just before it is still fetched.
+- **Typing and seen.** No extra requests: `GET /api/m/chat/admin/conversations/<id>?typing=1` and `GET /api/m/chat/widget/messages?typing=1` stamp `chat_conversations.agent_typing_at` (+ `agent_typing_name`) / `visitor_typing_at` (migration `009_typing.sql`) when that side typed in the last 4s; the other side's poll reports it while the stamp is under 7s old (`TYPING_WINDOW_MS`). A message clears its sender's stamp; an ended chat takes none; typing never bumps `updated_at`. "Seen" is `unread_for_visitor = 0`, which the widget clears while its window is open and in front. The admin list (`listConversations`) adds `waiting_since` (oldest visitor message after our last reply) and the visitor's `last_seen_at`/`left_at`, and its response carries the Online switch, which every switch on the page shares. `GET /api/m/chat/admin/visitors/<id>` returns the listed shape (chat id, status, name, unread) so an open visitor panel follows a chat starting or ending.
 - **Visitor identity** is a secret handed to the browser with its first message, kept in localStorage and sent as the `x-chat-visitor` header. Only its sha256 is stored. No cookies, no accounts. New chats are limited to 5 an hour from one address, messages to 20 a minute per chat.
 - **Attachments** are stored with core's `uploadMedia` under `media/chat/<conversation>/` with an unguessable key and no library row (declared through `core.media-private-storage`), and served only by `/api/m/chat/attachments/<id>`: a signed `?sig=` link for visitors and transcripts, or an admin session with `chat.view`.
 - **Visitor notifications** use Web Push with the site's own signing pair, through a service worker at `/api/m/chat/widget/sw` scoped to its own folder, so it takes over no page. They need an https `SITE_URL`.
