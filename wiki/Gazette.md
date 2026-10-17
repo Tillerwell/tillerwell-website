@@ -97,6 +97,10 @@ When editing a menu (see [Appearance and design](Appearance-and-design)), choose
 
 When the Social Hub module is installed, a **Social posts** tab appears after Templates. It shows every post with whether it is on Facebook and LinkedIn, when it is due if scheduled, and a **Post** button where it is not. See [Social Hub](Social-Hub#with-gazette-the-social-posts-tab). Without Social Hub the tab simply is not there. Gazette itself holds nothing for it: the tab is published into Gazette's `gazette.admin-tabs` extension point and Gazette only passes it the list of posts.
 
+Social Hub also adds a **Share on social media** card to the post editor: tick Facebook and/or LinkedIn, edit the words, and the social post goes out when you publish, or at the time you schedule the post. See [Social Hub](Social-Hub#with-gazette-sharing-from-the-post-editor).
+
+**For module authors:** the editor offers two extension points. `gazette.post-editor-panels` puts a card in the editor sidebar; the page renders it with `{ post }` (`GazetteEditorPanelPost` in `lib/editor-panels.ts`) and keeps it current with the window event `gazette:post-editor-state`, and fires `gazette:post-editor-before-publish` (`detail.waitFor(promise)`; a rejected promise stops the publish) before publishing or scheduling. `gazette.post-status-changed` is a server listener (`lib/post-events.ts`) called with `{ action: publish | schedule | unpublish | delete, postId, post }` after each change; a listener that fails is logged and never blocks the post. Scheduled posts still go live with no job running, so a listener is given the time and schedules its own work.
+
 ## Comments
 
 Turn comments on or off, and choose how they're moderated, from **Settings → General → Gazette**:

@@ -57,6 +57,24 @@ With more than one page on a network the column lists each page by name. Two fil
 
 **The limit worth knowing:** Social Hub only knows what it has read from each page - the most recent 25 Facebook posts and 20 LinkedIn posts at each hourly read, kept from then on - plus the posts written in Social Hub itself. A Gazette post shared by hand long before Social Hub was connected shows **Not posted**. Shortened links (`fb.me`, `lnkd.in`) cannot be matched back to the post.
 
+## With Gazette: sharing from the post editor
+
+With **Gazette** installed, the Gazette post editor gets a **Share on social media** card under **Publish** (needs `socialhub.view` to see it, `socialhub.post` to change it):
+
+- Tick each connected Facebook or LinkedIn page the post should also go to. A page that needs reconnecting cannot be ticked.
+- Once something is ticked, a text box appears, filled with the post's title and excerpt. Edit it freely (up to 3,000 characters, LinkedIn's limit). A link to the Gazette post is added for you, with its headline, excerpt and featured picture as the link card.
+- **When the article goes live** (the default) or **At a set time**. A set time earlier than the article itself is moved to the article's time, so nothing links to a page that is not up yet.
+- Changes save on their own after a second. Pressing **Publish Now** or **Schedule** in Gazette saves the card first; if the social post cannot be saved (too long, a page disconnected) the article is not published and the reason shows under the Publish buttons.
+
+What happens next:
+
+- **Publish Now:** the social post is sent straight after the article goes live (the five-minute publishing job picks it up if that first attempt is interrupted).
+- **Schedule:** the social post is scheduled for the same moment. Reschedule the article and the social post moves with it.
+- **Unpublish**, or the article is made **Private:** a social post that has not gone out goes back to waiting. Deleting the article deletes a social post that has not gone out.
+- **An article that is already live:** ticking pages offers **Post now** (or **Schedule social post** with a set time) in the card instead.
+
+Once it has gone, the card shows where it landed with **View** links, and **Try the failed ones again** if only some pages took it. These are ordinary Social Hub posts, so they also appear under **Scheduled** and **Drafts** on the Social Hub page. One social post per article; to share it again later, use the Social posts tab below or Social Hub itself.
+
 ## Deleting a post from Facebook or LinkedIn
 
 On the **Published** list, every post has a **Delete from Facebook** (or **LinkedIn**) button for anyone with `socialhub.post`. It asks first, because this removes the post from the page for everyone, reactions and comments included, and cannot be undone.
@@ -83,7 +101,7 @@ Set under **Roles**:
 
 ## Behind the scenes
 
-- **Tables** (`shub_` prefix): `shub_settings`, `shub_connections`, `shub_posts`, `shub_post_targets`, `shub_remote_posts`. App secrets and page tokens are encrypted with the site's `ENCRYPTION_KEY` (a restored backup written under a different key reads as "not set up" and needs the details entered again).
+- **Tables** (`shub_` prefix): `shub_settings`, `shub_connections`, `shub_posts`, `shub_post_targets`, `shub_remote_posts`. A post that follows a Gazette article carries `source_kind`/`source_id` (and `source_at`, its own later time) on `shub_posts`; Gazette tells Social Hub when the article is published, scheduled, unpublished or deleted through its `gazette.post-status-changed` extension point. App secrets and page tokens are encrypted with the site's `ENCRYPTION_KEY` (a restored backup written under a different key reads as "not set up" and needs the details entered again).
 - **Scheduled jobs:** `/api/m/social-hub/cron/publish` (every 5 minutes) and `/api/m/social-hub/cron/sync` (hourly). Frequencies can be changed on **Settings → Social Hub → Publishing**, or under **Settings → General → Schedules**.
 - **One publisher at a time:** a post is claimed with a row lock before it is sent, so two overlapping runs cannot post it twice. A post left "posting" by a run that died is failed after 15 minutes so a person can check the page before retrying.
 - **Link previews and pictures from other websites** are fetched by the server, never the browser, and anything resolving to a private address is refused at every redirect. Remote pictures reach the admin screens through `/api/m/social-hub/admin/image` because the site's content security policy allows no third-party image hosts.
