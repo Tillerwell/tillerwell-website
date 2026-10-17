@@ -57,6 +57,8 @@ Core admins always have full run of the Gazette, permissions or no permissions.
 
 Head to **Gazette → Posts → New Post**. Pick a blank post or start from a saved template, give it a title, and you're straight into the editor.
 
+The editor fills the whole screen, like the Layouts editor: your blocks on the left, the post in the middle, and on the right a **Page** panel (click empty space on the canvas to bring it back) holding everything about the post that isn't its words - title, slug, short description, publish and schedule buttons, the social media cards from other modules, visibility, author, featured image, series, tags and SEO.
+
 The editor has a small, writing-focused set of blocks - paragraphs and headings, pull quotes, code snippets (with proper syntax colouring), images, and dividers. It's deliberately not the full page-builder palette you get on ordinary pages; Gazette posts are meant to be written, not laid out.
 
 Everything autosaves a second or two after you stop typing, and you can also just press **Ctrl+S** (or **Cmd+S** on a Mac). When you're ready:
@@ -65,9 +67,9 @@ Everything autosaves a second or two after you stop typing, and you can also jus
 - **Schedule** lets you pick a future date and time - the post appears on the site automatically the moment that time arrives. No one needs to be logged in, and nothing needs to run in the background; Gazette checks the time whenever a visitor loads the page.
 - **Unpublish** pulls a live post back to Draft.
 
-A **Private** toggle in the sidebar hides a post from the public site, feeds and search entirely, useful for something you're not ready to announce. **Pinned** keeps a post at the top of the front page regardless of date.
+A **Private** toggle in the Page panel hides a post from the public site, feeds and search entirely, useful for something you're not ready to announce. **Pinned** keeps a post at the top of the front page regardless of date.
 
-**Duplicate** and **Save as Template** (also in the sidebar) are the fastest way to reuse a post's structure without starting from a blank page each time. Templates are shared by every writer, so **Save as Template** is an editor's button - authors and contributors can start from a template but not add one.
+**Duplicate** and **Save as Template** (Save as Template is in the Page panel's Publish section) are the fastest way to reuse a post's structure without starting from a blank page each time. Templates are shared by every writer, so **Save as Template** is an editor's button - authors and contributors can start from a template but not add one.
 
 ---
 
