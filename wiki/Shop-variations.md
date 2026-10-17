@@ -336,6 +336,12 @@ The **Variation tools** entry in your sidebar holds the shop-wide reports and th
 
   A rename from the spreadsheet also sorts out what the value is linked to. If the choice you've renamed it to is already on the Attributes screen, the copy on the product quietly re-links to that one and picks up its colour or picture, so a choice called Black is the attribute's Black and behaves like it from then on. Rename it to something the attribute has never heard of and the link is cut instead: the wording is yours, and nothing on the Attributes screen will come along later and overrule it. Previously the link stayed put wherever the name went, which is how a Black leg finish could end up wearing Silver's grey.
 
+## Variations made up of other products
+
+A single variation can be a set of other products rather than one thing on a shelf: the oak version of a chair that is really a seat, a back and a base. Open the variation's row in the grid (the arrow beside its name) and use **Made up of other products** below its photos. Add the parts, say how many of each, and save.
+
+That variation's stock then follows its scarcest part and the Stock cell in the grid turns read-only, because there is nothing to type. The rest of the product's variations carry on as they were. If any one part is out, only that variation shows as out of stock. Needs Shop 0.1.509 or later. How it works is described on the Shop page, under "Products made up of other products".
+
 ## Good to know
 
 - A variant only appears through its parent product - it never turns up as its own item in the shop grid, search or sitemap.

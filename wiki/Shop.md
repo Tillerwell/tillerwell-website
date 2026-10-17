@@ -187,6 +187,22 @@ The product's own SKU is now staff-only too, and by default. It's a buying refer
 
 ---
 
+### Products made up of other products
+
+Some things are sold as a set: a chair that is really a seat, a back and a base, or a desk and its screen. Open the product, go to **Stock & delivery** and use **Made up of other products**. Search for each part by name or SKU, say how many of it go into one, and press **Save parts**.
+
+From then on the product has no stock of its own to look after. It follows its scarcest part, so if the back runs out, the whole chair shows as out of stock, and when the back comes in again so does the chair. A part you do not keep a count of never holds it up. The product page shows what it can make right now instead of a box to type a number into.
+
+A few things worth knowing:
+
+- **The parts are ordinary products.** Spare parts you have marked as "parts only" are the obvious choice, and they keep their own SKU, supplier and cost. The set itself needs no SKU.
+- **Selling one takes the parts off the shelf.** Refunding one that has not left puts them back. Nothing is ever taken off the set's own count, because it has none.
+- **One level only.** A set cannot be a part of another set, and a part cannot itself be a set.
+- **A part cannot be deleted while a set uses it.** You are told which one, and you take it out of there first.
+- **Delivering stock books in the parts.** Adjusting the stock of the set itself is refused, with a nudge towards the parts.
+
+When the order is bought in, each part goes to whoever supplies it. See "Buying for a customer order" in the Purchase Orders page.
+
 ## Frequently asked questions
 
 Every shop answers the same handful of questions until it is blue in the face. How long is the lead time, does it come assembled, can I have it in a different fabric. Those answers can now live on the product page itself, in a section shoppers can open one at a time, with a link in the page's section strip between the measurements and the downloads. Search engines are handed them too, in the form they use for the question-and-answer results you sometimes see under a listing.

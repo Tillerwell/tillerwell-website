@@ -806,6 +806,16 @@ turn it off is your decision, and that email is the moment to make it.
 
 ---
 
+### When they bought a set
+
+If the customer bought a product that is made up of other products (see "Products made up of other products" on the Shop page), you do not buy the set. The panel shows one line for each part instead: that part's own SKU, supplier and cost, and the number you need, which is the number of sets times the number of that part in one. So three chairs of one seat and two bases becomes three seats and six bases, each going on the draft for whoever supplies it, and a part with no supplier is listed as one nobody can buy, like any other line.
+
+If the customer chose a delivery service, its name goes on every part, and its cost is charged once rather than once per part.
+
+Tracking is read the other way round. A parcel holding the seat is not news that a chair has gone, so the customer's order only says a set has been sent once every part of it has, even if the parts come from different suppliers in different parcels.
+
+The set is read as it is defined when the parcel arrives. If you change what a set is made of after the order has been raised, that applies to the tracking too.
+
 ## Suppliers' price lists
 
 **Purchase Orders → Catalogues** is where a supplier's own catalogue lives, so an order can be drafted at what they are charging today rather than at whatever was typed into a product when it was created.
