@@ -348,6 +348,12 @@ Twilio holds these messages, not the site, so how far back the list goes is up t
 
 ---
 
+## Another module answering the call
+
+A module can offer to answer a call itself instead of ringing a phone - [AI Call Answering](AI-Call-Answering) is one. It is offered each call after the blocked-caller and withheld-number checks, and sees whether the number is open and whether it would have rung a phone. If it takes the call, forwarding and voicemail are skipped for that call; if it declines, or anything goes wrong, the number behaves exactly as you set it up here.
+
+The number still needs call handling switched on in this tab (forwarding or voicemail), because that is what points it at your site.
+
 ## Keeping recordings
 
 Call recordings and voicemails sit in your Twilio account until something removes them, and Twilio charges storage for the privilege. On the **Alerts & data** tab, **Keep recordings for (days)** sets how long they stay: anything older is cleared out overnight, automatically.

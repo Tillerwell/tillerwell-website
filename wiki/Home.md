@@ -53,6 +53,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [UK Bookkeeping](UK-Bookkeeping) | Keeping the books, filing your VAT return with HMRC, and working out your accounts and corporation tax from those same records |
 | [Purchase Orders](Purchase-Orders) | The buying side: who you buy from, the orders you send them, what turns up, what goes back, and their invoice checked before you pay it |
 | [Social Hub](Social-Hub) | Facebook and LinkedIn pages in one place: what you have posted, and new posts written, scheduled and published from the admin |
+| [AI Call Answering](AI-Call-Answering) | A voice assistant for your phone numbers: product questions, suggestions, order enquiries after identity checks, and a callback taken for anything else, with every call written up in the inbox |
 | [Configuration reference](Configuration-reference) | Every setting in the admin panel, explained |
 
 ## For developers

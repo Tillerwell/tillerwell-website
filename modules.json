@@ -133,7 +133,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.49"
+      "version": "v0.1.50"
     },
     {
       "name": "ultimate-seo",
@@ -184,6 +184,11 @@
       "name": "pay-via-worldfirst-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/pay-via-worldfirst-for-shop",
       "version": "v0.1.5"
+    },
+    {
+      "name": "ai-call-answering",
+      "repoUrl": "https://github.com/cactus-foundation-modules/AI-Call-Answering",
+      "version": "v0.1.0"
     }
   ]
 }
