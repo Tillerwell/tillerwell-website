@@ -168,7 +168,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.135"
+      "version": "v0.1.136"
     },
     {
       "name": "google-ai-studio",
@@ -188,7 +188,7 @@
     {
       "name": "ai-call-answering",
       "repoUrl": "https://github.com/cactus-foundation-modules/AI-Call-Answering",
-      "version": "v0.1.4"
+      "version": "v0.1.6"
     }
   ]
 }
