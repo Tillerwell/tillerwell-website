@@ -24,7 +24,7 @@ import {
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
-import { cdnCacheControlForWindow, hasPageShapingQuery, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
+import { carriesAccessKey, cdnCacheControlForWindow, hasPageShapingQuery, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
 import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
@@ -240,6 +240,10 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // tagged product link belongs in the ordinary window with the bare address
     // rather than in the long-tail one. See hasPageShapingQuery.
     hasQuery: hasPageShapingQuery(request.nextUrl.search),
+    // A feed or export opened with a secret is never shared: Google Merchant
+    // Center fetches its shopping feed once a day and would otherwise be handed
+    // the previous day's copy. See carriesAccessKey.
+    hasAccessKey: carriesAccessKey(request.nextUrl.search),
     method: request.method,
     header: (name: string) => request.headers.get(name),
     hasCookie: (name: string) => request.cookies.has(name),

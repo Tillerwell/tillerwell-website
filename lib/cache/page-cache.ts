@@ -134,6 +134,33 @@ export function hasPageShapingQuery(search: string): boolean {
   return false
 }
 
+// Query parameters that hand over a credential: a feed or export opened with a
+// secret, a one-off link. A response behind one is not a public page, whatever
+// path it sits on. Its reader is usually a single machine that fetches rarely
+// and on a timetable (Google Merchant Center pulls a shopping feed once a day),
+// so a shared copy saves next to nothing and stops changes reaching it. A daily
+// fetch landing on a 24-hour copy, or a stale one served while it refreshes, is
+// handed the PREVIOUS day's document every time. Learned 2026-10-19: product
+// titles saved in the afternoon were still missing from Google the next day,
+// because the feed it fetched that night was the copy cached the night before.
+const ACCESS_KEY_PARAMS = new Set(['key', 'token', 'access_token', 'api_key', 'apikey'])
+
+/**
+ * Whether this request's query string carries an access key, which keeps it out
+ * of every shared cache. Takes the raw `?a=b` string (or ''), like
+ * hasPageShapingQuery.
+ */
+export function carriesAccessKey(search: string): boolean {
+  const query = search.startsWith('?') ? search.slice(1) : search
+  if (query === '') return false
+  for (const pair of query.split('&')) {
+    if (pair === '') continue
+    const name = decodeURIComponent(pair.split('=')[0]?.replace(/\+/g, ' ') ?? '')
+    if (ACCESS_KEY_PARAMS.has(name.toLowerCase())) return true
+  }
+  return false
+}
+
 export function usesLongCacheWindow(path: string, hasQuery: boolean): boolean {
   return hasQuery || MACHINE_READ_PATH.test(path)
 }
@@ -179,6 +206,9 @@ export type PageCacheDecisionInput = {
   longTtl?: number
   path?: string
   hasQuery?: boolean
+  // True when the query string carries a credential - see carriesAccessKey.
+  // Optional for the same reason as the two above.
+  hasAccessKey?: boolean
   method: string
   // Reads one request header by name, case-insensitively.
   header: (name: string) => string | null
@@ -220,6 +250,10 @@ export function pageCacheControl(input: PageCacheDecisionInput): string | null {
 
   // Range requests get their own entry semantics; not worth the surface area.
   if (input.header('range')) return null
+
+  // Opened with a secret: a feed or export for one reader, which must always get
+  // the current document. See carriesAccessKey.
+  if (input.hasAccessKey) return null
 
   // Signed in, or carrying a basket, or carrying anything a module said makes a
   // page personal. Left alone, so the response keeps whatever Next.js decides -

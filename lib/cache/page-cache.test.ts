@@ -5,6 +5,7 @@ vi.mock('@/lib/modules/cache-cookies', () => ({
 }))
 
 import {
+  carriesAccessKey,
   cdnCacheControl,
   cdnCacheControlForWindow,
   hasPageShapingQuery,
@@ -263,6 +264,29 @@ describe('hasPageShapingQuery', () => {
   it('reads a bare parameter with no value', () => {
     expect(hasPageShapingQuery('?gclid')).toBe(false)
     expect(hasPageShapingQuery('?preview')).toBe(true)
+  })
+})
+
+describe('carriesAccessKey', () => {
+  it('spots a feed opened with its secret', () => {
+    expect(carriesAccessKey('?key=abc123')).toBe(true)
+    expect(carriesAccessKey('?key=abc123&content=reviews')).toBe(true)
+    expect(carriesAccessKey('?content=promotions&key=abc123')).toBe(true)
+    expect(carriesAccessKey('?token=abc')).toBe(true)
+    expect(carriesAccessKey('?API_KEY=abc')).toBe(true)
+  })
+
+  it('leaves ordinary and tracking queries alone', () => {
+    expect(carriesAccessKey('')).toBe(false)
+    expect(carriesAccessKey('?')).toBe(false)
+    expect(carriesAccessKey('?page=2')).toBe(false)
+    expect(carriesAccessKey('?utm_source=google&gclid=x')).toBe(false)
+    expect(carriesAccessKey('?keyword=desk')).toBe(false)
+  })
+
+  it('keeps a keyed request out of the shared cache, even on a machine-read path', () => {
+    expect(decide({ hasAccessKey: true, path: '/google-shopping/feed.xml', hasQuery: true, longTtl: 86400 })).toBeNull()
+    expect(decide({ hasAccessKey: false, path: '/google-shopping/feed.xml', hasQuery: true, longTtl: 86400 })).toContain('s-maxage=86400')
   })
 })
 
