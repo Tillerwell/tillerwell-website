@@ -153,7 +153,7 @@
     {
       "name": "uk-bookkeeping",
       "repoUrl": "https://github.com/cactus-foundation-modules/uk-bookkeeping",
-      "version": "v0.2.51"
+      "version": "v0.2.52"
     },
     {
       "name": "google-tag",
@@ -178,7 +178,7 @@
     {
       "name": "social-hub",
       "repoUrl": "https://github.com/cactus-foundation-modules/social-hub",
-      "version": "v0.1.15"
+      "version": "v0.1.16"
     },
     {
       "name": "pay-via-worldfirst-for-shop",
