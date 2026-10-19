@@ -335,7 +335,7 @@ export async function takeOverMediaReferences(victim: Media, replacement: Media)
 
   const ICON_FIELDS = [
     'logoMediaId', 'logoDarkMediaId', 'faviconMediaId', 'faviconDarkMediaId',
-    'appIconMediaId', 'appleTouchIconMediaId', 'webManifest192MediaId', 'webManifest512MediaId',
+    'appIconMediaId', 'favicon16MediaId', 'favicon32MediaId', 'appleTouchIconMediaId', 'webManifest192MediaId', 'webManifest512MediaId',
   ] as const
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },

@@ -1026,6 +1026,8 @@ export async function getMediaReferencesBulk(mediaIds: string[]): Promise<Map<st
         faviconMediaId: true,
         faviconDarkMediaId: true,
         appIconMediaId: true,
+        favicon16MediaId: true,
+        favicon32MediaId: true,
         appleTouchIconMediaId: true,
         webManifest192MediaId: true,
         webManifest512MediaId: true,
@@ -1064,6 +1066,7 @@ export async function getMediaReferencesBulk(mediaIds: string[]): Promise<Map<st
     const refs: string[] = []
     if (config?.logoMediaId === mediaId || config?.logoDarkMediaId === mediaId) refs.push('site logo')
     if (config?.faviconMediaId === mediaId || config?.faviconDarkMediaId === mediaId) refs.push('site favicon')
+    if (config?.favicon16MediaId === mediaId || config?.favicon32MediaId === mediaId) refs.push('site favicon (16 / 32px)')
     if (config?.appIconMediaId === mediaId) refs.push('app icon')
     if (config?.appleTouchIconMediaId === mediaId) refs.push('apple touch icon')
     if (config?.webManifest192MediaId === mediaId) refs.push('web manifest icon (192px)')

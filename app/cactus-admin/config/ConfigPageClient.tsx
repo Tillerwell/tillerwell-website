@@ -167,10 +167,10 @@ function readCookieCategory(raw: ManifestCookieCategory): CookieSuggestion | nul
 // so never clobbers a branding edit made on the Styles page.
 const BRANDING_OWNED_KEYS = [
   'logoMediaId', 'logoDarkMediaId', 'faviconMediaId', 'faviconDarkMediaId',
-  'appIconMediaId', 'appleTouchIconMediaId', 'webManifest192MediaId', 'webManifest512MediaId',
+  'appIconMediaId', 'favicon16MediaId', 'favicon32MediaId', 'appleTouchIconMediaId', 'webManifest192MediaId', 'webManifest512MediaId',
   'appName', 'appShortName', 'themeColor', 'backgroundColor',
   'logoUrl', 'logoDarkUrl', 'faviconUrl', 'faviconDarkUrl',
-  'appIconUrl', 'appleTouchUrl', 'icon192Url', 'icon512Url',
+  'icon16Url', 'icon32Url', 'appIconUrl', 'appleTouchUrl', 'icon192Url', 'icon512Url',
 ] as const
 
 // Env var sections: each section has a label, description, and its managed keys.
