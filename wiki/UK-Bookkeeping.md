@@ -1286,6 +1286,19 @@ The VAT returns page can also show **Money with HMRC**: what HMRC says is owed
 and the payments it has received over the last year. Their figures, shown beside
 yours for comparison - never merged with them.
 
+Each return you have filed also gets a **Paid to HMRC?** column. When the page
+opens, the software asks HMRC about the liability for every filed return that is
+not yet paid, matched by the exact dates of the period: *Paid* only when HMRC
+states that nothing is outstanding, *Part paid* or *Unpaid* otherwise, and
+*Not known yet* when HMRC has nothing it can be matched to (it never guesses
+paid). It asks again on each visit - at most once an hour per return, or at once
+if you press Refresh from HMRC - until a return shows as paid. After that it
+never asks about that return again, and a page with nothing left to check makes
+no call to HMRC at all. The payments HMRC lists cannot do this job: a payment
+carries an amount and a date but no period.
+
+On the HMRC **sandbox** only, Refresh from HMRC also makes sure there is a test period left to file: if every period has been filed, it adds the most recent finished quarter that is not already listed. It adds one at a time, so pressing the button repeatedly does not pile them up.
+
 That email is worth keeping. As well as the figures, it carries a **records
 fingerprint** - a short code worked out from every entry behind the return. It
 only stays the same for as long as those entries do. Sitting in your inbox, where
