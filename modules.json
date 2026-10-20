@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.510"
+      "version": "v0.1.512"
     },
     {
       "name": "address-lookup-for-shop",
@@ -163,7 +163,7 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.55"
+      "version": "v0.1.56"
     },
     {
       "name": "unified-inbox",
@@ -178,7 +178,7 @@
     {
       "name": "social-hub",
       "repoUrl": "https://github.com/cactus-foundation-modules/social-hub",
-      "version": "v0.1.17"
+      "version": "v0.1.18"
     },
     {
       "name": "pay-via-worldfirst-for-shop",

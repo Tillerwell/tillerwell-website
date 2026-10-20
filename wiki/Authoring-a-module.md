@@ -931,6 +931,12 @@ The other half of `shop.order-paid`. Card and provider orders announce order-pai
 
 An observer is `(event: { orderId, orderNumber, paymentMethod }) => Promise<void> | void`: plain strings, no shop types, for the same reason as order-paid. It fires after the how-to-pay emails, every observer is try/caught, and the gather itself is caught, so nothing an observer does can cost the shopper their order. **The same order announces order-paid later**, when the money is cleared, so an observer listening to both must be safe to run twice. `unified-inbox`'s `unifiedInboxOrderPlacedUnpaidObserver` is the worked example: it runs the same fill-in-the-blanks contact sync as its paid observer.
 
+### Being told an order finished: `shop.order-completed`
+
+The other end of `shop.order-paid`. Told once when an order is marked **Completed** - the customer has their goods - so a module can tidy up its own side: `modules/shop/lib/order-completed-hooks.ts`, fired last in `applyOrderStatusChange`, only on the move that actually changed the status.
+
+An observer is `(event: { orderId, orderNumber }) => Promise<void> | void`: plain strings, no shop types, for the same reason as order-paid. Every observer is try/caught and the gather is caught too. An order that goes Completed, back to Shipped and Completed again is announced twice, so an observer must be safe to run twice, and (as with order-paid) a hook is not a guarantee: pair it with a sweep. `purchase-orders`' `purchaseOrdersOrderCompletedObserver` is the worked example; it reads a cached off-by-default flag first and returns, and its nightly sweep catches the supplier bill that arrives after the order completed.
+
 ### Keeping your own rows in step with a product: `shop.product-saved`
 
 A module that mirrors part of a product into rows of its own has a standing problem: it hears about the copy it makes, and never about the original changing afterwards. `shop.product-saved` (`modules/shop/lib/product-saved.ts`) is the seam for that. A hook is `(productId: string, changed: readonly string[]) => Promise<void> | void`, where `changed` names only the fields that write actually carried - so the usual answer is to look at the array and return.

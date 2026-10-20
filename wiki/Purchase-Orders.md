@@ -294,6 +294,8 @@ On an order **going straight to a customer** that was raised from one of their s
 
 ---
 
+**On the Orders and Bills tabs.** A purchase order raised for a customer's order shows that customer order's number, linked through to it, with where it has got to underneath (Processing, Preparing, Dispatched and so on). Purchase orders raised by hand have nothing there, and a site with no shop has no such column at all. A draft bill on the Bills tab has an **Approve** button, which asks first and does what Approve does on the bill itself.
+
 ## The order screen
 
 Open an order and everything you can **do** to it is in one bar across the top, and that bar stays put however far down the page you scroll.
@@ -531,6 +533,28 @@ It is checked at each of the moments an order can actually finish: approving or 
 It will not settle one with a return still waiting on its money. Closing the order would file away the one screen showing that a supplier owes you.
 
 **A Pending close order will not close until every invoice on it has been approved or voided.** The Close button says so and stays off until they have been. That is the entire reason the status exists: an order that closed itself on a supplier's say-so would file away an invoice nobody had read. If it turns out they have not invoiced it all after all, **Reopened** puts it back to Received.
+
+### Closing from the Orders tab
+
+An order at **Pending close** has a button on its own row, so you do not have to open it to deal with it:
+
+- **Approve bill and close**, where an invoice on it is still a draft. It asks first, naming the invoice (and saying so if it does not agree with the order), then approves it and closes the order. With more than one draft invoice it reads **Approve bills and close** and does the lot. It needs both the bills and the create permission.
+- **Close**, where every invoice has already been approved.
+- Nothing but a note saying **A bill is queried**, where a question to the supplier is still open. That one is yours to settle on the order itself.
+
+It uses exactly the same approving and closing the bill and order screens do, so the history, the books and every rule are the same. If an invoice is refused, nothing after it happens and the order stays where it was.
+
+### Closing itself when the customer's order is completed
+
+Under **Settings**, *Approve the bill and close the order when the customer's order is completed* is **off** until you switch it on, because it approves money. With it on, the moment a customer's order is marked **Completed**, the purchase order raised for it is closed off without anybody touching it - but only when there is nothing a person would have stopped to look at:
+
+- the supplier's bill (or bills) are drafts, none of them queried, and every one is clean on the match;
+- together they come to **exactly** the purchase order's total, to the penny. Your price tolerance does not apply here: a couple of percent of an approved payment is somebody's money;
+- the order is fully delivered and invoiced, and no return is still waiting on its credit.
+
+Then the draft bills are approved (and go to the books if you use them, as when you approve one), and the order is closed. The history says it was done automatically and why. Anything short of that is left exactly as it is, for you, with the buttons above.
+
+The bill often arrives after the customer has their goods, so the same check runs overnight over purchase orders from the last four months whose customer order is Completed. Needs a Shop new enough to announce the completion; an older one is covered by the overnight pass alone.
 
 ### Straight into the books
 
