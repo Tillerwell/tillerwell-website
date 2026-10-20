@@ -4,23 +4,13 @@ import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { getInstalledModules } from '@/lib/modules/live-status'
 import { getSiteConfig } from '@/lib/config/site'
-import { isMediaProviderConfigured, isGitHubConfigured } from '@/lib/config/env'
+import { getModuleOverviews } from '@/lib/admin/dashboard-modules'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import type { Metadata } from 'next'
-import type { MediaProviderType } from '@prisma/client'
 
 export const metadata: Metadata = { title: 'Dashboard — Admin' }
 
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
-
-type FeatureItem = {
-  id: string
-  name: string
-  description: string
-  configured: boolean
-  settingsTab: string
-  hint: string
-}
 
 export default async function AdminDashboard() {
   const headersList = await headers()
@@ -30,10 +20,11 @@ export default async function AdminDashboard() {
   // Boards' thread/post/queue counts) via the generic "core.admin-dashboard-widgets"
   // extension point, permission-filtered live from Module.manifest - the
   // dashboard knows the point name only, never any module name.
-  const [user, config, widgetModules] = await Promise.all([
+  const [user, config, widgetModules, overviews] = await Promise.all([
     getSessionFromCookie(),
     getSiteConfig(),
     getInstalledModules(),
+    getModuleOverviews(),
   ])
 
   const widgetEntries: ExtensionPointEntry[] = []
@@ -51,6 +42,7 @@ export default async function AdminDashboard() {
     ...new Set([
       'members.list',
       ...widgetEntries.map((e) => e.permission).filter((p): p is string => !!p),
+      ...overviews.map((o) => o.linkPermission).filter((p): p is string => !!p),
     ]),
   ]
   const permissions = user ? await hasPermissions(user, permissionKeys) : {}
@@ -78,190 +70,112 @@ export default async function AdminDashboard() {
       : Promise.resolve(null),
   ])
 
-  const emailConfigured = !!(process.env.BREVO_API_KEY || process.env.SMTP_HOST)
-  const activeProvider = config?.mediaProvider as MediaProviderType | null
-  const mediaConfigured = !!(activeProvider && isMediaProviderConfigured(activeProvider))
-  const botProtectionConfigured = !!(process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY)
-  const edgeConfigConfigured = !!(process.env.EDGE_CONFIG && process.env.VERCEL_EDGE_CONFIG_ID)
-  const githubConfigured = await isGitHubConfigured()
-  const sentryConfigured = !!process.env.SENTRY_DSN
+  const statusLabel = config?.status === 'live' ? 'Live' : config?.status === 'comingSoon' ? 'Coming soon' : 'Maintenance'
+  const statusTone = config?.status === 'live' ? 'green' : config?.status === 'comingSoon' ? 'yellow' : 'red'
 
-  const features: FeatureItem[] = [
-    {
-      id: 'media',
-      name: 'Image storage',
-      description: 'Upload images, set a logo, and add a favicon to your site.',
-      configured: mediaConfigured,
-      settingsTab: 'media',
-      hint: 'Connect a storage provider such as Backblaze B2, Cloudflare R2, or an image CDN.',
-    },
-    {
-      id: 'email',
-      name: 'Email',
-      description: 'Send password reset links, verification emails, and OTP codes.',
-      configured: emailConfigured,
-      settingsTab: 'email',
-      hint: 'Add a Brevo API key or SMTP credentials.',
-    },
-    {
-      id: 'bot',
-      name: 'Bot protection',
-      description: 'Guard public forms against spam with Cloudflare Turnstile.',
-      configured: botProtectionConfigured,
-      settingsTab: 'integrations',
-      hint: 'Add your Turnstile site key and secret key.',
-    },
-    {
-      id: 'edge',
-      name: 'Edge Config',
-      description: 'Instantly serve your admin URL and site status from Vercel\'s global edge network.',
-      configured: edgeConfigConfigured,
-      settingsTab: 'integrations',
-      hint: 'Link a Vercel Edge Config store for ultra-fast global reads.',
-    },
-    {
-      id: 'github',
-      name: 'GitHub integration',
-      description: 'Install and update modules and themes directly from GitHub.',
-      configured: githubConfigured,
-      settingsTab: 'integrations',
-      hint: 'Add a GitHub personal access token with repo read/write access.',
-    },
-    {
-      id: 'sentry',
-      name: 'Error monitoring',
-      description: 'Track errors and exceptions in Sentry rather than just Vercel function logs.',
-      configured: sentryConfigured,
-      settingsTab: 'integrations',
-      hint: 'Add your Sentry DSN.',
-    },
+  const stats: Array<{ label: string; value: number; tone?: 'warn' }> = [
+    { label: 'Pages', value: pageCount },
+    { label: 'Media files', value: mediaCount },
+    { label: 'Admin users', value: userCount },
   ]
-
-  const configuredCount = features.filter((f) => f.configured).length
-  const allConfigured = configuredCount === features.length
+  const memberStats = memberCounts
+    ? [
+        { label: 'Members', value: memberCounts[0] },
+        { label: 'Active', value: memberCounts[1] },
+        { label: 'Awaiting approval', value: memberCounts[2], tone: memberCounts[2] > 0 ? ('warn' as const) : undefined },
+        { label: 'Unverified', value: memberCounts[3], tone: memberCounts[3] > 0 ? ('warn' as const) : undefined },
+        { label: 'Suspended', value: memberCounts[4] },
+        { label: 'Leaving', value: memberCounts[5] },
+      ]
+    : []
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <a
-          href={`/${adminPath}/config?tab=general`}
-          className={`badge badge-${config?.status === 'live' ? 'green' : config?.status === 'comingSoon' ? 'yellow' : 'red'}`}
-          style={{ textDecoration: 'none' }}
-        >
-          Site Status: {config?.status === 'live' ? 'Live' : config?.status === 'comingSoon' ? 'Coming soon' : 'Maintenance'}
+    <div className="dash">
+      <header className="dash-hero">
+        <div>
+          <p className="dash-eyebrow">{config?.siteName ?? 'Your site'}</p>
+          <h1 className="dash-title">Welcome back, {user?.username}</h1>
+          <p className="dash-sub">
+            {user?.role.name} &middot; {overviews.length} {overviews.length === 1 ? 'module' : 'modules'} installed
+          </p>
+        </div>
+        <a href={`/${adminPath}/config?tab=general`} className={`badge badge-${statusTone}`} style={{ textDecoration: 'none' }}>
+          Site status: {statusLabel}
         </a>
-      </div>
+      </header>
 
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <p style={{ margin: 0, color: 'var(--color-muted)', fontSize: '0.9375rem' }}>
-          Logged in as <strong>{user?.username}</strong> ({user?.role.name})
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        {[
-          { label: 'Pages', value: pageCount },
-          { label: 'Users', value: userCount },
-          { label: 'Media files', value: mediaCount },
-          ...(memberCounts ? [
-            { label: 'Total members', value: memberCounts[0] },
-            { label: 'Active members', value: memberCounts[1] },
-            { label: 'Pending approval', value: memberCounts[2] },
-            { label: 'Pending verification', value: memberCounts[3] },
-            { label: 'Suspended members', value: memberCounts[4] },
-            { label: 'Scheduled for deletion', value: memberCounts[5] },
-          ] : []),
-        ].map((stat) => (
-          <div key={stat.label} className="card" style={{ textAlign: 'center', padding: '1.25rem' }}>
-            <div style={{ fontSize: '2rem', fontWeight: 700 }}>{stat.value}</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{stat.label}</div>
+      <section aria-label="Site at a glance" className="dash-stats">
+        {stats.map((stat) => (
+          <div key={stat.label} className="dash-stat">
+            <div className="dash-stat-value">{stat.value.toLocaleString('en-GB')}</div>
+            <div className="dash-stat-label">{stat.label}</div>
           </div>
         ))}
-      </div>
+      </section>
 
-      {!allConfigured && (
-        <div className="card" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-            <h2 className="card-title" style={{ margin: 0 }}>Additional features</h2>
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{configuredCount} of {features.length} set up</span>
-          </div>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 1.25rem' }}>
-            Your site is up and running. Set up these optional features whenever you&apos;re ready.
-          </p>
-
-          {/* Progress bar */}
-          <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', borderRadius: 2, background: 'var(--color-primary)',
-              width: `${(configuredCount / features.length) * 100}%`,
-              transition: 'width 0.3s ease',
-            }} />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-            {features.map((f) => (
-              <div key={f.id} style={{
-                display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
-                padding: '0.875rem',
-                borderRadius: 8,
-                background: f.configured ? 'var(--color-success-subtle)' : 'var(--color-bg)',
-                border: `1px solid ${f.configured ? 'var(--color-success-border)' : 'var(--color-border)'}`,
-                marginBottom: '0.5rem',
-              }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: f.configured ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
-                  fontSize: 'var(--text-sm)', fontWeight: 700,
-                  color: f.configured ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
-                  marginTop: 1,
-                }}>
-                  {f.configured ? '✓' : '○'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: f.configured ? 'var(--color-success)' : 'var(--color-text)' }}>
-                      {f.name}
-                    </span>
-                    {!f.configured && (
-                      <a
-                        href={`/${adminPath}/config?tab=${f.settingsTab}`}
-                        style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
-                      >
-                        Set up →
-                      </a>
-                    )}
-                  </div>
-                  <p style={{ margin: '0.125rem 0 0', fontSize: '0.875rem', color: 'var(--color-muted)', lineHeight: 1.4 }}>
-                    {f.configured ? f.description : f.hint}
-                  </p>
-                </div>
+      {memberStats.length > 0 && (
+        <section aria-label="Members" className="dash-section">
+          <h2 className="dash-heading">Members</h2>
+          <div className="dash-stats dash-stats-compact">
+            {memberStats.map((stat) => (
+              <div key={stat.label} className={`dash-stat${stat.tone === 'warn' ? ' dash-stat-warn' : ''}`}>
+                <div className="dash-stat-value">{stat.value.toLocaleString('en-GB')}</div>
+                <div className="dash-stat-label">{stat.label}</div>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {allConfigured && (
-        <div className="card" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <span style={{ fontSize: '1.125rem' }}>✓</span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-success)' }}>All features configured</div>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`}>Settings</a>.</div>
-            </div>
-          </div>
-        </div>
+        </section>
       )}
 
       {widgetIds.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
-          {widgetIds.map((id) => {
-            const Widget = widgetComponents[id]
-            return Widget ? <Widget key={id} /> : null
-          })}
-        </div>
+        <section aria-label="Live summaries" className="dash-section">
+          <h2 className="dash-heading">Live summaries</h2>
+          <div className="dash-widgets">
+            {widgetIds.map((id) => {
+              const Widget = widgetComponents[id]
+              return Widget ? <Widget key={id} /> : null
+            })}
+          </div>
+        </section>
+      )}
+
+      {overviews.length > 0 && (
+        <section aria-label="Modules" className="dash-section">
+          <h2 className="dash-heading">Modules</h2>
+          <div className="dash-modules">
+            {overviews.map((m) => {
+              const canOpen = !!m.linkPath && (!m.linkPermission || permissions[m.linkPermission] === true)
+              const body = (
+                <>
+                  <div className="dash-mod-top">
+                    <span className="dash-mod-icon" aria-hidden="true">
+                      {m.icon ? (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: m.icon }} />
+                      ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z" /><path d="m3 12 9 4.5 9-4.5" /><path d="m3 16.5 9 4.5 9-4.5" /></svg>
+                      )}
+                    </span>
+                    <span className={`dash-mod-status dash-mod-status-${m.status}`}>
+                      {m.status === 'ok' ? 'Active' : m.status === 'update' ? 'Update ready' : 'Updating'}
+                    </span>
+                  </div>
+                  <h3 className="dash-mod-title">{m.title}</h3>
+                  {m.description && <p className="dash-mod-desc">{m.description}</p>}
+                  <dl className="dash-mod-meta">
+                    <div><dt>Version</dt><dd>{m.version}{m.updateTo ? ` \u2192 ${m.updateTo}` : ''}</dd></div>
+                    {m.rowEstimate > 0 && <div><dt>Records</dt><dd>~{m.rowEstimate.toLocaleString('en-GB')}</dd></div>}
+                    {m.tableCount > 0 && <div><dt>Tables</dt><dd>{m.tableCount}</dd></div>}
+                  </dl>
+                </>
+              )
+              return canOpen ? (
+                <a key={m.name} href={`/${adminPath}${m.linkPath}`} className="dash-mod dash-mod-link">{body}</a>
+              ) : (
+                <div key={m.name} className="dash-mod">{body}</div>
+              )
+            })}
+          </div>
+        </section>
       )}
     </div>
   )

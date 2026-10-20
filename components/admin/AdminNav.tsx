@@ -77,6 +77,12 @@ const SECTION_CHEVRON = (
   </svg>
 )
 
+const CHEVRON_UP = (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 15l-6-6-6 6" />
+  </svg>
+)
+
 const STAR_OUTLINE = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19l1-5.8L3.6 9.1l5.8-.8z" /></svg>
 )
@@ -468,15 +474,18 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
     return (
       <button
         type="button"
-        className={`admin-nav-section-label${over ? ' admin-nav-section-label--drop' : ''}`}
+        className={`admin-nav-section-label${collapsed ? ' admin-nav-section-label--rail' : ''}${over ? ' admin-nav-section-label--drop' : ''}`}
         data-drag-section={dropSectionId}
         onClick={() => toggleSection(storageKey)}
         aria-expanded={open}
+        {...(collapsed ? tipProps(displayLabel) : {})}
       >
-        <span className="admin-nav-section-label-text">
-          {icon && <span className="admin-nav-section-icon">{icon}</span>}
-          {displayLabel}
-        </span>
+        {!collapsed && (
+          <span className="admin-nav-section-label-text">
+            {icon && <span className="admin-nav-section-icon">{icon}</span>}
+            {displayLabel}
+          </span>
+        )}
         <span className={`admin-nav-section-chevron${open ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
       </button>
     )
@@ -493,9 +502,9 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
     })
   }
 
-  // The rail has no room for an accordion and its icons are the whole menu, so
-  // the setting only applies to the full-width sidebar.
-  const accordion = prefs.linksInAccordion && !collapsed
+  // The rail mirrors the full sidebar link-for-link: same accordion, same
+  // open/closed sections, same Recent and Favourites. Only the labels go.
+  const accordion = prefs.linksInAccordion
   const treeOpen = !accordion || allLinksOpen
 
   const showToolsRow = !collapsed && prefs.showTools
@@ -510,8 +519,8 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
   const favouritesBlock =
     (collapsed || !filterQuery) && favouriteItems.length > 0 ? (
       <div className={prefs.favouritesSticky ? 'admin-nav-pinned-favs' : 'admin-nav-favs-flow'}>
-        {!collapsed && renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
-        {(collapsed || !collapsedSections[FAV_SECTION]) && favouriteItems.map((item) => renderItem(item, 'fav', 'fav'))}
+        {renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
+        {!collapsedSections[FAV_SECTION] && favouriteItems.map((item) => renderItem(item, 'fav', 'fav'))}
       </div>
     ) : null
 
@@ -615,7 +624,7 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
       ) : (
         <>
           {/* Recently visited */}
-          {!collapsed && prefs.showRecents && recents.length > 0 && (
+          {prefs.showRecents && recents.length > 0 && (
             <div>
               {renderSectionHeader(RECENT_SECTION, 'Recent', CLOCK_ICON, !collapsedSections[RECENT_SECTION])}
               {!collapsedSections[RECENT_SECTION] &&
@@ -625,10 +634,11 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
                       href={`${base}${r.path}`}
                       data-nav-item=""
                       className={isActive(`${base}${r.path}`) ? 'active' : ''}
+                      {...tipProps(r.label)}
                       onClick={(e) => handleNavClick(r.path, e)}
                     >
                       <span className="admin-nav-icon">{CLOCK_ICON}</span>
-                      <span className="admin-nav-label">{r.label}</span>
+                      {!collapsed && <span className="admin-nav-label">{r.label}</span>}
                       {pendingPath === r.path && <span className="admin-nav-spinner" aria-hidden="true" />}
                     </Link>
                   </div>
@@ -639,25 +649,26 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
           {accordion && (
             <button
               type="button"
-              className="admin-nav-section-label admin-nav-all-toggle"
+              className={`admin-nav-section-label admin-nav-all-toggle${collapsed ? ' admin-nav-section-label--rail' : ''}`}
               onClick={toggleAllLinks}
               aria-expanded={allLinksOpen}
+              {...(collapsed ? tipProps('View all') : {})}
             >
-              <span className="admin-nav-section-label-text">View all</span>
-              <span className={`admin-nav-section-chevron${allLinksOpen ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+              {!collapsed && <span className="admin-nav-section-label-text">View all</span>}
+              <span className="admin-nav-section-chevron">{allLinksOpen ? CHEVRON_UP : SECTION_CHEVRON}</span>
             </button>
           )}
 
           {/* Real sections - filtered by the server, then ordered by this user */}
           {treeOpen && orderedSections.map((section, sectionIndex) => {
-            const open = collapsed || !section.label || !collapsedSections[section.label]
+            const open = !section.label || !collapsedSections[section.label]
             const treeItems = hiddenFromTree ? section.items.filter((i) => !hiddenFromTree.has(i.id)) : section.items
             if (hiddenFromTree && section.items.length > 0 && treeItems.length === 0 && !reorder.isDraggingTree) return null
             const emptyTarget = reorder.isDraggingTree && open && section.items.length === 0
             return (
               <div key={section.id}>
-                {sectionIndex > 0 && collapsed && <div className="admin-nav-divider" />}
-                {!collapsed && section.label && renderSectionHeader(section.label, section.label, null, open, section.id)}
+                {sectionIndex > 0 && collapsed && !section.label && <div className="admin-nav-divider" />}
+                {section.label && renderSectionHeader(section.label, section.label, null, open, section.id)}
                 {open && treeItems.map((item) => renderItem(item, section.id, 'tree'))}
                 {/* A section you have just emptied still needs somewhere to aim at. */}
                 {emptyTarget && (

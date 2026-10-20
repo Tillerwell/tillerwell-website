@@ -12,6 +12,7 @@ type Props = {
   roles: Role[]
   /** Saved "site logo in the sidebar" choice. */
   useSiteLogo: boolean
+  useSiteLogoOnLogin: boolean
   /** Saved sidebar display choices (recents, favourites, tools, version, accordion). */
   sidebarPrefs: SidebarPrefs
   /** A site logo exists (Appearance > Styles); the switch is inert without one. */
@@ -67,7 +68,7 @@ function initWork(sections: EditorNavSection[]): WorkSection[] {
   }))
 }
 
-function toConfig(work: WorkSection[], useSiteLogo: boolean, sidebarPrefs: SidebarPrefs): AdminMenuConfig {
+function toConfig(work: WorkSection[], useSiteLogo: boolean, useSiteLogoOnLogin: boolean, sidebarPrefs: SidebarPrefs): AdminMenuConfig {
   const items: AdminMenuConfig['items'] = {}
   const sections: AdminMenuConfig['sections'] = {}
   work.forEach((sec, si) => {
@@ -85,22 +86,29 @@ function toConfig(work: WorkSection[], useSiteLogo: boolean, sidebarPrefs: Sideb
       items[it.id] = override
     })
   })
-  return useSiteLogo ? { items, sections, sidebarPrefs, useSiteLogo } : { items, sections, sidebarPrefs }
+  return {
+    items,
+    sections,
+    sidebarPrefs,
+    ...(useSiteLogo ? { useSiteLogo } : {}),
+    ...(useSiteLogoOnLogin ? { useSiteLogoOnLogin } : {}),
+  }
 }
 
-export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteLogo, sidebarPrefs: savedPrefs, siteLogoUploaded }: Props) {
+export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteLogo, useSiteLogoOnLogin: savedUseSiteLogoOnLogin, sidebarPrefs: savedPrefs, siteLogoUploaded }: Props) {
   const router = useRouter()
   const [work, setWork] = useState<WorkSection[]>(() => initWork(sections))
   const [useSiteLogo, setUseSiteLogo] = useState(savedUseSiteLogo)
+  const [useSiteLogoOnLogin, setUseSiteLogoOnLogin] = useState(savedUseSiteLogoOnLogin)
   const [prefs, setPrefs] = useState<SidebarPrefs>(savedPrefs)
-  const [savedJson, setSavedJson] = useState<string>(() => JSON.stringify(toConfig(initWork(sections), savedUseSiteLogo, savedPrefs)))
+  const [savedJson, setSavedJson] = useState<string>(() => JSON.stringify(toConfig(initWork(sections), savedUseSiteLogo, savedUseSiteLogoOnLogin, savedPrefs)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState(false)
   const [resetArmed, setResetArmed] = useState(false)
 
   const selectableRoles = useMemo(() => roles.filter((r) => !r.isProtected), [roles])
-  const currentJson = useMemo(() => JSON.stringify(toConfig(work, useSiteLogo, prefs)), [work, useSiteLogo, prefs])
+  const currentJson = useMemo(() => JSON.stringify(toConfig(work, useSiteLogo, useSiteLogoOnLogin, prefs)), [work, useSiteLogo, useSiteLogoOnLogin, prefs])
   const dirty = currentJson !== savedJson
 
   function update(next: WorkSection[]) {
@@ -153,7 +161,7 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
     setSaving(true)
     setError(null)
     try {
-      const payload = toConfig(work, useSiteLogo, prefs)
+      const payload = toConfig(work, useSiteLogo, useSiteLogoOnLogin, prefs)
       const res = await fetch('/api/admin/navigation', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -186,7 +194,13 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
       const res = await fetch('/api/admin/navigation', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(useSiteLogo ? { items: {}, sections: {}, sidebarPrefs: prefs, useSiteLogo } : { items: {}, sections: {}, sidebarPrefs: prefs }),
+        body: JSON.stringify({
+          items: {},
+          sections: {},
+          sidebarPrefs: prefs,
+          ...(useSiteLogo ? { useSiteLogo } : {}),
+          ...(useSiteLogoOnLogin ? { useSiteLogoOnLogin } : {}),
+        }),
       })
       if (!res.ok) throw new Error('Could not reset the menu')
       // Full reload so the editor re-reads the default order/labels from the server.
@@ -213,6 +227,19 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
           onChange={(e) => setUseSiteLogo(e.target.checked)}
         />
         Show site logo instead of favicon and site name in admin sidebar
+        {!siteLogoUploaded && (
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>(upload a site logo under Appearance &gt; Styles first)</span>
+        )}
+      </label>
+
+      <label className="settings-check" style={{ marginBottom: 'var(--space-4)' }}>
+        <input
+          type="checkbox"
+          checked={useSiteLogoOnLogin}
+          disabled={!siteLogoUploaded}
+          onChange={(e) => setUseSiteLogoOnLogin(e.target.checked)}
+        />
+        Show site logo instead of favicon on the admin sign-in page
         {!siteLogoUploaded && (
           <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>(upload a site logo under Appearance &gt; Styles first)</span>
         )}

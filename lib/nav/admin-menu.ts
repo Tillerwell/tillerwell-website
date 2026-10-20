@@ -121,6 +121,8 @@ export const AdminMenuConfigSchema = z.object({
   // Settings > General > Admin Menu: swap the sidebar's favicon + site name for the site logo
   // (light/dark pair from Appearance > Styles). Ignored while no logo is uploaded.
   useSiteLogo: z.boolean().optional(),
+  // Same logo pair on the admin sign-in page in place of the favicon. Ignored while no logo is uploaded.
+  useSiteLogoOnLogin: z.boolean().optional(),
   // Settings > General > Site: list the Settings tabs down a sidebar of their own
   // instead of across the top, and (optionally) drop the sub-tab strips from each
   // Settings page so the sidebar's tree is the only way round. Admin chrome like the

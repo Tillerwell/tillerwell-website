@@ -13,6 +13,8 @@ type LoginFormProps = {
   siteName: string
   faviconUrl: string | null
   faviconDarkUrl: string | null
+  logoUrl?: string | null
+  logoDarkUrl?: string | null
 }
 
 function isEmbeddedAppWebView(): boolean {
@@ -37,7 +39,7 @@ function passkeyErrorMessage(err: unknown): string {
   return 'Passkey authentication failed'
 }
 
-export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: LoginFormProps) {
+export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl, logoUrl, logoDarkUrl }: LoginFormProps) {
   const searchParams = useSearchParams()
   // Same-origin paths only - a ?next=https://evil.com would otherwise bounce the
   // admin straight off the site the moment they signed in.
@@ -253,7 +255,26 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-8)', background: 'var(--color-bg-subtle)' }}>
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-10)', width: '100%', maxWidth: 400, boxShadow: 'var(--shadow-xl)' }}>
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
-          {faviconUrl ? (
+          {logoUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt={siteName}
+                style={{ maxWidth: '100%', maxHeight: 64, objectFit: 'contain', marginBottom: 'var(--space-3)' }}
+                data-logo-variant={logoDarkUrl ? 'light' : undefined}
+              />
+              {logoDarkUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoDarkUrl}
+                  alt={siteName}
+                  style={{ maxWidth: '100%', maxHeight: 64, objectFit: 'contain', marginBottom: 'var(--space-3)' }}
+                  data-logo-variant="dark"
+                />
+              )}
+            </>
+          ) : faviconUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

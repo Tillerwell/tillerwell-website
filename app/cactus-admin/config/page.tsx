@@ -169,6 +169,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   // module link, unfiltered by permission - so an admin can set rules on all of them.
   let navEditorData: {
     useSiteLogo: boolean
+    useSiteLogoOnLogin: boolean
     sidebarPrefs: SidebarPrefs
     siteLogoUploaded: boolean
     sections: EditorNavSection[]
@@ -192,6 +193,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     if (hasInboxTab) availableCoreItemIds.add('inbox')
     navEditorData = {
       useSiteLogo: parseAdminMenuConfig(siteConfigRow?.adminMenuConfig).useSiteLogo === true,
+      useSiteLogoOnLogin: parseAdminMenuConfig(siteConfigRow?.adminMenuConfig).useSiteLogoOnLogin === true,
       sidebarPrefs: resolveSidebarPrefs(parseAdminMenuConfig(siteConfigRow?.adminMenuConfig)),
       siteLogoUploaded: !!siteConfigRow?.logoMediaId,
       sections: resolveAdminMenuForEditor(moduleGroups, parseAdminMenuConfig(siteConfigRow?.adminMenuConfig), availableCoreItemIds),
