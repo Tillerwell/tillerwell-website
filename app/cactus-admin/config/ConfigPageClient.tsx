@@ -882,6 +882,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   // Database restore state
   const restoreInputRef = useRef<HTMLInputElement>(null)
+  // The sticky bar's height, published as --settings-sticky-h so a module's own
+  // sub-tab strip can stick just under it (see .settings-sub-tabs in globals.css).
+  const stickyBarRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const bar = stickyBarRef.current
+    const host = bar?.parentElement
+    if (!bar || !host) return
+    const publish = () => host.style.setProperty('--settings-sticky-h', `${bar.offsetHeight}px`)
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState('')
@@ -1832,7 +1845,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {/* Title, Save button and tab strip share one sticky bar, so Save is in reach
           however far down a long tab you have scrolled. Module tabs put theirs in
           the slot beside the core button (see SettingsHeaderActions). */}
-      <div className="settings-sticky" style={showSubStrip ? { marginBottom: '0.5rem' } : undefined}>
+      <div ref={stickyBarRef} className="settings-sticky" style={showSubStrip ? { marginBottom: '0.5rem' } : undefined}>
         <div className="page-header">
           <h1 className="page-title">Settings</h1>
           {/* Anything a page adds to the bar (a status line, Reset to defaults,
@@ -1856,6 +1869,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           items={topTabs.map((t) => ({ key: t.key, label: t.label, active: t.key === group, onClick: () => selectTab(t.key) }))}
         />
 
+        {showSubStrip && <TabStrip className="settings-sub-tabs" style={{ marginBottom: 0 }} items={subItems} />}
+
         {error && <div className="alert alert-danger" style={{ margin: '0.75rem 0 0.25rem' }}>{error}</div>}
       </div>
 
@@ -1867,8 +1882,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         onDiscard={() => leaveNow(pendingHref!)}
         onSave={saveAndLeave}
       />
-
-      {showSubStrip && <TabStrip className="settings-sub-tabs" items={subItems} />}
 
       {tab === 'navigation' && showNavTab && navEditorData && (
         <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} useSiteLogo={navEditorData.useSiteLogo} useSiteLogoOnLogin={navEditorData.useSiteLogoOnLogin} sidebarPrefs={navEditorData.sidebarPrefs} siteLogoUploaded={navEditorData.siteLogoUploaded} />

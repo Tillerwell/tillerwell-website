@@ -1286,9 +1286,10 @@ a:hover {
   transform: rotate(-90deg);
 }
 
-/* Icon rail: a section header is just its chevron, centred over the icons. */
+/* Icon rail: a section header is a bare divider; only View all keeps a chevron. */
 .admin-nav-section-label--rail {
   justify-content: center;
+  min-height: var(--space-3);
   padding-left: 0;
   padding-right: 0;
 }
@@ -3243,6 +3244,19 @@ tbody tr:hover {
 .settings-header-slot {
   display: contents;
 }
+/* Sub-tab strips inside a tab's own content (every module's) stick just under the
+   bar. The bar's own copy stays put with it. --settings-sticky-h is the bar's
+   measured height; its bottom margin is cancelled so the strip meets it. The
+   strip's parent bounds the stick, so it leaves with its panel. */
+.settings-main .settings-sub-tabs {
+  position: sticky;
+  top: calc(var(--settings-sticky-h, 0px) - var(--space-8));
+  z-index: 30;
+  background: var(--color-page-bg, var(--color-bg));
+}
+.settings-sticky .settings-sub-tabs {
+  position: static;
+}
 /* A deep link (#section) scrolls its target to the top of the viewport; the sticky
    bar would sit on top of it, so leave room for the bar as well. */
 .settings-sticky ~ .admin-anchor,
@@ -3255,6 +3269,9 @@ tbody tr:hover {
     --settings-pad-x: var(--space-4);
     /* Sits under the sticky mobile top bar rather than behind it. */
     top: calc(var(--admin-mobile-topbar-height) - var(--settings-pad-y));
+  }
+  .settings-main .settings-sub-tabs {
+    top: calc(var(--admin-mobile-topbar-height) + var(--settings-sticky-h, 0px) - var(--space-4));
   }
 }
 

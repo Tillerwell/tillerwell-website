@@ -486,7 +486,9 @@ export default function AdminNav({ adminPath, version, sections, prefs = DEFAULT
             {displayLabel}
           </span>
         )}
-        <span className={`admin-nav-section-chevron${open ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+        {!collapsed && (
+          <span className={`admin-nav-section-chevron${open ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+        )}
       </button>
     )
   }
