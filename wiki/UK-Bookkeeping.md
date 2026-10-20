@@ -183,15 +183,36 @@ says how many there are and what they add up to - and the fix is to open each
 one and set the account it was paid from or into. An older entry keeps whatever
 it was saved with until you do; nothing is moved behind your back.
 
-**Changing the VAT rate re-splits the figure you typed.** Type a total and put
-the line on 20%, and the VAT comes out of that total: £20.00 becomes £16.67 plus
-£3.33, and the total stays £20.00. Type the net figure instead, off an invoice
-that shows the two separately, and the VAT goes on top of it. Whichever box you
-last typed in is the one that holds still, which matters most on an entry brought
-in from a bank statement: the total there is the money that actually left the
-account, and it should not move because you told the entry what rate it was at.
+**The entry form and the entry page share one layout.** Figures and receipts sit in
+a column on the right that stays on screen as you scroll: the **Summary** (before
+VAT, VAT with a line per rate when a receipt mixes rates, the total, whether it is
+paid, and the Save button) above **Receipts**. The details and the lines fill the
+rest of the width. Money in, money out and transfer are a switch along the top
+rather than a dropdown.
 
-**"No receipt needed for this one" is a tickbox at the bottom of the top card.**
+**Receipts can be added while you type the entry.** Drop files on the Receipts box
+(or browse), or pick one already in the Receipts inbox. They are held in the browser
+and attached the moment the entry saves; if one will not attach, the entry is still
+saved, the form says which, and pressing Save again retries only those. Editing a
+saved entry shows its receipts, with a thumbnail for photos, and adds or removes
+them straight away. Their own paperwork suppresses the invoice Cactus would
+otherwise make for money-in entries.
+
+**Money in has no invoice number box.** Cactus hands out your own number when the invoice is made on save, and the entry page shows it as **Invoice number**. Money out still asks for the supplier's.
+
+**You choose once whether you are typing the total or the net.** Above the lines,
+**I am typing amounts: Including VAT / Before VAT**. Each line then has a single box
+to type in; the other two figures are worked out beside it (dashed boxes). Type a
+total and put the line on 20%, and the VAT comes out of that total: £20.00 becomes
+£16.67 plus £3.33, and the total stays £20.00. Choose Before VAT instead, for an
+invoice that shows the two separately, and the VAT goes on top. Whichever you chose is
+the figure that holds still when the rate changes, which matters most on an entry
+brought in from a bank statement: the total there is the money that actually left
+the account. To match a supplier's own rounding, press **edit** beside the VAT and
+type it; **work the VAT out again** puts it back. A line's VAT treatment and (on a
+capital line) the asset register tick sit on a thin row under it.
+
+**"No receipt needed for this one" is a tickbox under Receipts.**
 Some entries are never going to have a receipt: money put onto a balance held
 with a supplier, a bank charge, a payment on account. Tick it and the entry stops
 counting as paperwork still owed - it drops off the "waiting for a receipt"
@@ -625,8 +646,9 @@ imported *against* an account, so there has to be one before anything can come
 in.
 
 Then **Bookkeeping → Bank statements**, and press **Import a statement** in the
-top right. Drop a statement anywhere on the card, or choose
-it.
+top right. A drop box appears: drag the statement onto it, or click **browse**.
+Which account and which bank it came from are worked out from the file. You are
+only asked (with a dropdown) if one of them could not be worked out.
 
 **A PDF works as well as a CSV.** Download the statement from your online
 banking as either and it will be read: the table is found by looking at where
