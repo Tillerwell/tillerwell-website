@@ -23,11 +23,14 @@ import pg from 'pg'
 const { Client } = pg
 
 // ---------------------------------------------------------------------------
-// Database connection (uses the same DATABASE_URL as Prisma)
+// Database connection. DIRECT_URL when the install has one: a build is a handful
+// of connections that gain nothing from a pooler, and through PgBouncer they
+// take client slots the live site needs (a deploy once failed with "no more
+// connections allowed (max_client_conn)"). Otherwise the same DATABASE_URL as Prisma.
 // ---------------------------------------------------------------------------
 
 function getClient() {
-  const url = process.env.DATABASE_URL
+  const url = process.env.DIRECT_URL || process.env.DATABASE_URL
   if (!url) throw new Error('DATABASE_URL is not set')
   const parsedUrl = new URL(url)
   if (parsedUrl.searchParams.get('sslmode') === 'require') {
