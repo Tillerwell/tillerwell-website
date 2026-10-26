@@ -772,6 +772,8 @@ There are two search boxes, and they are for two different jobs.
 
 **The one in the head of the list** narrows what is in front of you. Type into it and the list you are looking at gets shorter. It is the right thing when you know roughly where the message is.
 
+Both boxes look at the words of a message, its subject and who sent it. Type an **email address** - all of one, or the `@` and what comes after it - and they also look at who it went to and who was copied in, so a customer you wrote to first and who has not written back yet is still found by their own address.
+
 **The magnifier at the top of the rail**, beside the pen, is for when you do not. It opens over the whole inbox, and it starts by looking **everywhere you can read, at any status** - so something dealt with and filed three weeks ago in an address you never open is found rather than missed. Open it again while you are looking at the results and it keeps whatever you chose last time, so narrowing a search down takes one press rather than three. **Ctrl K** opens it from anywhere in the inbox, or **Cmd K** on a Mac.
 
 Under the box are the narrower cuts, which are the ones a mail program has always had:
