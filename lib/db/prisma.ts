@@ -1,4 +1,3 @@
-import { PrismaPg } from '@prisma/adapter-pg'
 import { Prisma, PrismaClient } from '@prisma/client'
 import type { ITXClientDenyList } from '@prisma/client/runtime/library'
 
@@ -69,11 +68,9 @@ function runtimeDatabaseUrl(): string | undefined {
 }
 
 function createPrismaClient() {
-  // Tillerwell (Netlify): the driver adapter replaces the native engine - see
-  // the generator block in prisma/schema.prisma.
-  const connectionString = runtimeDatabaseUrl()
+  const datasourceUrl = runtimeDatabaseUrl()
   return new PrismaClient({
-    ...(connectionString ? { adapter: new PrismaPg({ connectionString, max: 3 }) } : {}),
+    ...(datasourceUrl ? { datasourceUrl } : {}),
     log:
       process.env.NODE_ENV === 'development'
         ? ['query', 'error', 'warn']
