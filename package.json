@@ -1,11 +1,12 @@
 {
   "name": "cactus",
-  "version": "0.5.1885",
+  "version": "0.5.1886",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
     "dev:warm": "bash scripts/dev-warm.sh",
-    "build": "node scripts/prebuild.mjs && node scripts/next-build.mjs",
+    "build": "node scripts/prebuild.mjs && node scripts/tillerwell-patch-prisma.mjs && node scripts/next-build.mjs",
+    "postbuild": "rm -f node_modules/@prisma/client/runtime/query_engine_bg.*.wasm-base64.* node_modules/@prisma/client/runtime/query_compiler_bg.cockroachdb.wasm-base64.* node_modules/@prisma/client/runtime/query_compiler_bg.mysql.wasm-base64.* node_modules/@prisma/client/runtime/query_compiler_bg.sqlite.wasm-base64.* node_modules/@prisma/client/runtime/query_compiler_bg.sqlserver.wasm-base64.* node_modules/@prisma/client/runtime/query_compiler_bg.postgresql.wasm-base64.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "node scripts/generate-all.mjs && tsc --noEmit",
@@ -39,7 +40,7 @@
     "test:google-shopping-sql": "vitest run modules/google-shopping-for-shop/lib/click-tracking-sql.test.ts modules/google-shopping-for-shop/lib/delivery-sql.test.ts modules/google-shopping-for-shop/lib/feed-rules-sql.test.ts modules/google-shopping-for-shop/lib/feed-sql.test.ts modules/google-shopping-for-shop/lib/google-ads-sql.test.ts modules/google-shopping-for-shop/lib/health-sql.test.ts modules/google-shopping-for-shop/lib/performance-sql.test.ts modules/google-shopping-for-shop/lib/push-sql.test.ts modules/google-shopping-for-shop/lib/workbench-sql.test.ts --testTimeout 300000 --no-file-parallelism",
     "check:module-pins": "CHECK_MODULE_PINS=1 vitest run lib/modules/pin-check.live.test.ts",
     "db:migrate": "prisma migrate dev",
-    "db:push": "echo 'Use prisma migrate dev instead of db push — see AGENTS.md' && exit 1",
+    "db:push": "echo 'Use prisma migrate dev instead of db push \u2014 see AGENTS.md' && exit 1",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:status": "prisma migrate status",

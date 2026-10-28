@@ -30,10 +30,22 @@ function turbopackBuildCache(): boolean {
   return process.env.CACTUS_TURBOPACK_BUILD_CACHE !== '0'
 }
 
+// Which hosting platform is building this. Netlify marks its builds with
+// NETLIFY=true but does not promise the same variable to its functions at runtime,
+// so the build-time answer is baked in here and read back by
+// lib/hosting/provider.ts. Vercel sets VERCEL=1 at runtime too, so it needs no help,
+// but recording it keeps the value meaningful on both. Empty means a local build.
+function hostingProvider(): string {
+  if (process.env.VERCEL === '1') return 'vercel'
+  if (process.env.NETLIFY === 'true') return 'netlify'
+  return ''
+}
+
 const config: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_TELEMETRY_DISABLED: '1',
+    CACTUS_HOSTING_PROVIDER: hostingProvider(),
   },
   images: {
     remotePatterns: [
@@ -212,8 +224,12 @@ const config: NextConfig = {
   outputFileTracingExcludes: {
     '**': [
       './node_modules/@prisma/client/runtime/query_engine_bg.*.wasm-base64.*',
-      './node_modules/@prisma/client/runtime/query_compiler_bg.*.wasm-base64.*',
+      // Tillerwell (Netlify): the postgresql compiler's .js copy is kept - the
+      // generated client is patched to load it (scripts/tillerwell-patch-prisma.mjs).
+      './node_modules/@prisma/client/runtime/query_compiler_bg.{cockroachdb,mysql,sqlite,sqlserver}.wasm-base64.*',
+      './node_modules/@prisma/client/runtime/query_compiler_bg.postgresql.wasm-base64.mjs',
       './node_modules/.prisma/client/query_engine_bg.wasm',
+      './node_modules/.prisma/client/query_compiler_bg.wasm',
     ],
   },
   // Security headers are applied in proxy.ts
