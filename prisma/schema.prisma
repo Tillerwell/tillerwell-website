@@ -4,7 +4,11 @@
 // Never use db push — see AGENTS.md.
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  // Tillerwell (Netlify): no native query engine. Netlify runs proxy.ts on its
+  // edge runtime, which cannot load .node add-ons, so queries go through the
+  // JS query compiler and the pg driver adapter instead.
+  engineType = "client"
 }
 
 datasource db {

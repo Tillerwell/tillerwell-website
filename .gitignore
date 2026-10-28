@@ -79,3 +79,6 @@ coverage/
 # Off-platform sequence worker service (its own repo, usersaynoso)
 /services/
 
+
+# Netlify CLI local state
+.netlify

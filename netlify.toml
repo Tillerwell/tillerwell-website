@@ -1,0 +1,15 @@
+# Tillerwell (Netlify). Cactus targets Vercel; on Netlify it runs in its
+# non-Vercel mode (no one-click updates, admin module installs or env editing).
+[build]
+  # @prisma/client ships base64 WebAssembly engines for every database it
+  # supports. Vercel's tracer drops them via outputFileTracingExcludes in
+  # next.config.ts, but the Netlify Next.js runtime copies the whole package into
+  # the server function and the upload is rejected as too large. With
+  # engineType = "client" the client loads .prisma/client/query_compiler_bg.wasm,
+  # so these copies are never read. Deleted after `next build` (which has already
+  # bundled what it needs) and before the runtime packages the function.
+  command = "npm run build && rm -f node_modules/@prisma/client/runtime/query_engine_bg.*.wasm-base64.* node_modules/@prisma/client/runtime/query_compiler_bg.*.wasm-base64.*"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "24"

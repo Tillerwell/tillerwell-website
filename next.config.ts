@@ -139,6 +139,9 @@ const config: NextConfig = {
   // being here. See lib/documents/chromium.ts for why it is the "-min" package
   // and where the browser itself now comes from.
   serverExternalPackages: ['draco3d', 'puppeteer-core', '@sparticuz/chromium-min'],
+  // Tillerwell (Netlify): pg is on Next's built-in external list, but Netlify's
+  // edge middleware cannot load external modules, so force it into the bundle.
+  transpilePackages: ['pg', '@prisma/adapter-pg'],
   typescript: {
     // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate
     // every change already goes through (see CLAUDE.md work loop). On Vercel it
