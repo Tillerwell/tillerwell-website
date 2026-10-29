@@ -939,7 +939,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const [dbResetWasHard, setDbResetWasHard] = useState(false)
 
   // GitHub App state
-  type GhStatus = { encryptionKeySet: boolean; encryptionKeyValid: boolean; connected: boolean; unreadable: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; hasPat: boolean }
+  type GhStatus = { encryptionKeySet: boolean; encryptionKeyValid: boolean; connected: boolean; unreadable: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; writeProblem?: string | null; hasPat: boolean }
   const [ghStatus, setGhStatus] = useState<GhStatus | null>(null)
   const [ghBusy, setGhBusy] = useState(false)
   const [ghError, setGhError] = useState('')
@@ -1720,6 +1720,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             <p style={{ fontSize: 'var(--text-sm)', marginBottom: '0.75rem' }}>
               Connected as <strong>{gh.appSlug}</strong>, installed on <strong>{gh.installationAccount ?? 'your account'}</strong>.
             </p>
+            {gh.writeProblem && (
+              <div className="alert alert-warning" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                <div>{gh.writeProblem}</div>
+                <button className="btn btn-secondary" style={{ fontSize: '0.875rem', marginTop: '0.5rem' }} disabled={ghBusy} onClick={handleInstall}>
+                  {ghBusy ? 'Opening GitHub…' : 'Open the installation on GitHub'}
+                </button>
+              </div>
+            )}
             <button className="btn btn-danger" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleDisconnect}>
               {ghBusy ? 'Disconnecting…' : 'Disconnect'}
             </button>
@@ -1727,6 +1735,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               Disconnecting removes the credentials from this database. The GitHub App itself remains on your GitHub account.
             </p>
           </div>
+        )}
+
+        {/* Reads work on a read-only App, so this only bites at the first update - say it up front. */}
+        {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.unreadable && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: '0.75rem', marginBottom: 0 }}>
+            Core and module updates write to your repository, so the App needs Repository permissions -&gt; Contents
+            set to <strong>Read and write</strong>. An App connected from here gets that already; if you changed it on
+            GitHub, set it back in the App&apos;s settings and accept the permission update on the installation.
+          </p>
         )}
       </div>
     )

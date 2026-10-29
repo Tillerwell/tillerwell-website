@@ -1,6 +1,7 @@
 import { Octokit } from '@octokit/rest'
 import { createAppAuth } from '@octokit/auth-app'
 import { isEncryptionKeyUsable, tryDecryptSecret } from '@/lib/crypto/secrets'
+import { writeAccessProblem, type WriteAccessProbe } from './write-access'
 
 // A GithubAppConnection row is worth exactly nothing unless this install's
 // ENCRYPTION_KEY can read the private key inside it - and there is a perfectly
@@ -133,6 +134,52 @@ export async function getGithubToken(): Promise<string | null> {
   }
 
   return process.env.GITHUB_API_TOKEN ?? null
+}
+
+// What the connection getGithubClient() would use is allowed to do to owner/repo.
+// For an App this asks GitHub which installation covers the repo (app JWT, one call):
+// a 404, or a different installation from the connected one, means the token we use
+// cannot write there whatever its permissions say. For a PAT it is one repos.get.
+// Any other failure reads as 'unknown' - the probe is advice, not a gate.
+export async function probeRepoWriteAccess(owner: string, repo: string): Promise<WriteAccessProbe> {
+  try {
+    const conn = await loadConnection()
+    if (conn.state === 'ready' && conn.appId && conn.privateKey && conn.installationId) {
+      try {
+        const { data } = await getAppOctokit(conn.appId, conn.privateKey).rest.apps.getRepoInstallation({ owner, repo })
+        return {
+          kind: 'app',
+          installedOnRepo: String(data.id) === conn.installationId,
+          contents: data.permissions?.contents,
+        }
+      } catch (err) {
+        if ((err as { status?: number }).status === 404) return { kind: 'app', installedOnRepo: false, contents: undefined }
+        throw err
+      }
+    }
+    if (process.env.GITHUB_API_TOKEN) {
+      const { data } = await new Octokit({ auth: process.env.GITHUB_API_TOKEN }).rest.repos.get({ owner, repo })
+      return { kind: 'token', push: data.permissions?.push }
+    }
+  } catch (err) {
+    console.warn('[github] could not read write permissions - carrying on:', err)
+  }
+  return { kind: 'unknown' }
+}
+
+// The owner-facing problem with writing to the install's own repo (GITHUB_REPO), or
+// null when there is none or it cannot be told. For the Integrations card.
+export async function installRepoWriteProblem(): Promise<string | null> {
+  const [owner, repo] = (process.env.GITHUB_REPO ?? '').split('/')
+  if (!owner || !repo) return null
+  return writeAccessProblem(await probeRepoWriteAccess(owner, repo), owner, repo)
+}
+
+// Throws the owner-facing permissions message before a write sequence starts, rather
+// than letting it fail halfway with "Resource not accessible by integration".
+export async function assertCanWriteRepo(owner: string, repo: string): Promise<void> {
+  const problem = writeAccessProblem(await probeRepoWriteAccess(owner, repo), owner, repo)
+  if (problem) throw new Error(problem)
 }
 
 // Returns an app-level Octokit (JWT auth, not installation token).
