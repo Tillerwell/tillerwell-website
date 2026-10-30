@@ -6,11 +6,13 @@ import {
   envKeysForProvider,
   isProxied,
 } from '@/lib/media/providers'
+import { isEncryptionKeyUsable, rawCurrentEnvKey } from '@/lib/crypto/keyring'
 import {
   detectHostingProvider,
   getHostingCredentials,
   HOSTING_CREDENTIAL_KEYS,
   HOSTING_PROVIDER_LABELS,
+  HOSTING_PROVIDERS,
   type HostingProvider,
 } from '@/lib/hosting/provider'
 
@@ -22,9 +24,9 @@ export type EnvVarStatus = {
   gates?: string
 }
 
-// True when the app is running on neither Vercel nor Netlify. Each platform marks
-// its own builds and runtime (see lib/hosting/provider.ts); neither is ever set
-// locally. Their absence is the signal for "local-development mode", where the
+// True when the app is running on no hosting platform at all - not Vercel, not
+// Netlify, not a cactus-host server. Each marks its own builds and runtime (see
+// lib/hosting/provider.ts); none is ever set locally. Their absence is the signal for "local-development mode", where the
 // hosting control plane (env-var writes, redeploys, core/module updates) is
 // unavailable and config comes from .env.local. A real deployment that simply
 // hasn't connected its API token yet is still detected, so it is never
@@ -58,6 +60,25 @@ export function getEnvStatus(): {
     const label = HOSTING_PROVIDER_LABELS[provider]
     const keys = HOSTING_CREDENTIAL_KEYS[provider]
     const required = !local && host === provider
+    // On a server the pair is not something the owner fetches: cactus-host writes
+    // both into the site's env file when the site is added to the box.
+    if (provider === 'server') {
+      return [
+        {
+          name: keys.token,
+          description: 'Token cactus-host issued for this site. Written by `cactus-host site add` - used for writing env vars and starting builds on your server. Not used in local-development mode.',
+          required,
+          set: !!process.env[keys.token],
+        },
+        {
+          name: keys.siteId,
+          description: 'The name cactus-host knows this site by. Written by `cactus-host site add`. Not used in local-development mode.',
+          required,
+          set: !!process.env[keys.siteId],
+        },
+      ]
+    }
+    const unit = provider === 'netlify' ? 'site' : 'project'
     return [
       {
         name: keys.token,
@@ -67,14 +88,14 @@ export function getEnvStatus(): {
       },
       {
         name: keys.siteId,
-        description: `${label} ${provider === 'netlify' ? 'site' : 'project'} ID. Selected during setup - identifies which ${provider === 'netlify' ? 'site' : 'project'} to configure. Not used in local-development mode.`,
+        description: `${label} ${unit} ID. Selected during setup - identifies which ${unit} to configure. Not used in local-development mode.`,
         required,
         set: !!process.env[keys.siteId],
       },
     ]
   }
   const hostingRequired = host ? hostingVars(host) : []
-  const hostingOptional = host ? [] : [...hostingVars('vercel'), ...hostingVars('netlify')]
+  const hostingOptional = host ? [] : HOSTING_PROVIDERS.flatMap(hostingVars)
   const sessionSecret: EnvVarStatus = {
     name: 'SESSION_SECRET',
     description: local
@@ -186,7 +207,7 @@ export function getEnvStatus(): {
       name: 'ENCRYPTION_KEY',
       description: '64-character hex string (32 bytes) for encrypting GitHub App credentials in the database. Generate: openssl rand -hex 32',
       required: false,
-      set: !!process.env.ENCRYPTION_KEY,
+      set: rawCurrentEnvKey() !== null,
       gates: 'GitHub App connection flow (alternative to GITHUB_API_TOKEN)',
     },
     {
@@ -346,7 +367,7 @@ export function configuredProxiedProviders(): MediaProviderType[] {
 
 export async function isGitHubConfigured(): Promise<boolean> {
   if (process.env.GITHUB_API_TOKEN) return true
-  if (!process.env.ENCRYPTION_KEY) return false
+  if (!isEncryptionKeyUsable()) return false
   const { prisma } = await import('@/lib/db/prisma')
   const conn = await prisma.githubAppConnection.findFirst({ select: { installationId: true } })
   return !!conn?.installationId
@@ -356,7 +377,7 @@ export type GitHubConfigStatus = 'configured' | 'app_not_installed' | 'not_confi
 
 export async function getGitHubConfigStatus(): Promise<GitHubConfigStatus> {
   if (process.env.GITHUB_API_TOKEN) return 'configured'
-  if (!process.env.ENCRYPTION_KEY) return 'not_configured'
+  if (!isEncryptionKeyUsable()) return 'not_configured'
   const { prisma } = await import('@/lib/db/prisma')
   const conn = await prisma.githubAppConnection.findFirst({ select: { installationId: true } })
   if (!conn) return 'not_configured'
@@ -372,7 +393,13 @@ export function isNeonConfigured(): boolean {
   return !!process.env.NEON_API_KEY
 }
 
+// Never on a server run by cactus-host, even with the Vercel keys present - which
+// they will be on a site moved over from Vercel with its env copied across. The
+// proxy's in-process cache (lib/config/site.ts) does the job there, and one
+// long-lived process clears it the moment an admin saves, so there is nothing for
+// Edge Config to add except a dependency on a project being wound down.
 export function isEdgeConfigWritable(): boolean {
+  if (process.env.CACTUS_HOSTING_PROVIDER === 'server') return false
   return !!(
     process.env.VERCEL_API_TOKEN && process.env.VERCEL_EDGE_CONFIG_ID
   )
