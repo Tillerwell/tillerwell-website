@@ -29,6 +29,10 @@ export type FakeSystem = System & {
   requests: LocalRequest[]
   /** While set, build steps wait for it - to hold a build open mid-test. */
   hold: Promise<void> | null
+  /** Non-zero to make pg_dump fail. */
+  dumpExit: number
+  /** Answers a request to a site's port before the defaults do, when it returns one. */
+  answer: (req: LocalRequest) => LocalResponse | null
 }
 
 export function fakeSystem(): FakeSystem {
@@ -42,6 +46,8 @@ export function fakeSystem(): FakeSystem {
     proofs: new Map(),
     requests: [],
     hold: null,
+    dumpExit: 0,
+    answer: () => null,
     async run(cmd: string, args: string[], opts: RunOptions = {}): Promise<RunResult> {
       sys.calls.push({ cmd, args })
       if (cmd === 'git' && args.includes('rev-parse')) {
@@ -57,6 +63,12 @@ export function fakeSystem(): FakeSystem {
         const dest = args[args.indexOf('-C') + 1] as string
         writeFileSync(join(dest, 'package.json'), '{"name":"site"}')
         writeFileSync(join(dest, 'cactus-host.json'), '{"crons":[{"path":"/api/cron/dispatch","schedule":"*/5 * * * *"}]}')
+        return { code: 0, output: '' }
+      }
+      if (cmd === 'sh' && args[1]?.includes('pg_dump')) {
+        // pg_dump -Fc -d <db> > <file>
+        if (sys.dumpExit !== 0) return { code: sys.dumpExit, output: 'pg_dump: error: connection failed' }
+        writeFileSync(args[4] as string, `dump of ${args[3]}`)
         return { code: 0, output: '' }
       }
       if (cmd === 'systemd-run') {
@@ -81,6 +93,8 @@ export function fakeSystem(): FakeSystem {
     },
     async local(req: LocalRequest): Promise<LocalResponse> {
       sys.requests.push(req)
+      const answered = sys.answer(req)
+      if (answered) return answered
       // An unhealthy release behaves like a site that cannot reach its database:
       // /api/health says so, and every page sends the visitor to the setup wizard.
       if (!sys.healthy(req.port)) {
@@ -108,6 +122,7 @@ export function testConfig(): HostConfig {
     systemdDir: join(root, 'systemd'),
     keepReleases: 3,
     healthTimeoutSeconds: 5,
+    backupDir: join(root, 'backups'),
   }
 }
 
@@ -152,3 +167,41 @@ export function hostWithSite(opts: { env?: Record<string, string>; domains?: str
   )
   return { config, system, host, site, paths }
 }
+
+/** A fake Postgres cluster (psql answers from a list of databases and roles), plus a working ssh-keygen for `site add`. */
+export function withCluster(sys: FakeSystem, existing: { databases?: string[]; roles?: string[] } = {}) {
+  const databases = new Set(existing.databases ?? [])
+  const roles = new Set(existing.roles ?? [])
+  const base = sys.run.bind(sys)
+  sys.run = async (cmd: string, args: string[], opts?: RunOptions) => {
+    if (cmd === 'ssh-keygen') {
+      sys.calls.push({ cmd, args })
+      const file = args[args.indexOf('-f') + 1] as string
+      writeFileSync(file, 'private')
+      writeFileSync(`${file}.pub`, 'ssh-ed25519 AAAA cactus-host test')
+      return { code: 0, output: '' }
+    }
+    if (cmd !== 'runuser' && cmd !== 'sh' && cmd !== 'rclone') return base(cmd, args, opts)
+    if (cmd === 'sh' && args[1]?.includes('pg_dump')) return base(cmd, args, opts)
+    sys.calls.push({ cmd, args })
+    const sql = args[args.indexOf('-c') + 1] ?? ''
+    if (args.includes('psql') && sql.startsWith('select (select count(*)')) {
+      const name = /datname = '([a-z0-9_]+)'/.exec(sql)?.[1] ?? ''
+      return { code: 0, output: `${databases.has(name) ? 1 : 0}\t${roles.has(name) ? 1 : 0}\n` }
+    }
+    if (args.includes('psql') && sql.startsWith('select datname')) {
+      return { code: 0, output: [...databases].map((d) => `${d}\t${d}\t2097152`).join('\n') + '\n' }
+    }
+    if (args.includes('psql') && sql.startsWith('CREATE ROLE')) {
+      roles.add(/CREATE ROLE ([a-z0-9_]+)/.exec(sql)?.[1] ?? '')
+      return { code: 0, output: '' }
+    }
+    if (args.includes('createdb')) {
+      databases.add(args[args.length - 1] as string)
+      return { code: 0, output: '' }
+    }
+    return { code: 0, output: '' }
+  }
+  return { databases, roles }
+}
+

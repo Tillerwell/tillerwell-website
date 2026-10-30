@@ -49,12 +49,25 @@ export type SiteRecord = {
    * issued per zone, so two sites on two domains need one each.
    */
   tls?: { cert: string; key: string }
+  /**
+   * Certificates for particular domains that sit in another Cloudflare zone from the
+   * rest of the site (an origin certificate covers one zone), keyed by domain.
+   */
+  domainTls?: Record<string, { cert: string; key: string }>
   createdAt: number
 }
 
 export type BuildRecord = BuildSummary & {
   releaseDir: string | null
   slot: SlotName | null
+  /** Epoch ms it last went live, by its own build or a rollback. Absent on older records. */
+  liveAt?: number | null
+  /**
+   * Whether the build got as far as `npm run build`, where migrations run. False until
+   * it does. Absent on records from before it was kept, which counts as true: nobody
+   * knows what those did to the database.
+   */
+  reachedMigrations?: boolean
 }
 
 // Short enough that "cactus-<site>" fits a Linux user name (32 characters at most).
@@ -177,6 +190,7 @@ export function toSummary(build: BuildRecord): BuildSummary {
     ref: build.ref,
     state: build.state,
     createdAt: build.createdAt,
+    startedAt: build.startedAt ?? null,
     finishedAt: build.finishedAt,
     error: build.error,
     live: build.live,

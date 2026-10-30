@@ -38,9 +38,12 @@ import {
   type DomainSummary,
   type EnvKeySummary,
   type EnvWrite,
+  type HostUpdateResponse,
   type SiteSummary,
   type StartBuildResponse,
 } from './protocol.ts'
+import { localDatabase } from './db.ts'
+import { Snapshots, type SnapshotRecord } from './snapshots.ts'
 import { Store, toSummary, writeFileAtomic, type BuildRecord, type SitePaths, type SiteRecord, type SlotName } from './store.ts'
 import { mustRun, type System } from './system.ts'
 import { buildStepArgs } from './units.ts'
@@ -67,6 +70,12 @@ function newBuildId(now: number): string {
   return `${stamp}-${randomBytes(3).toString('hex')}`
 }
 
+function formatBytes(n: number): string {
+  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`
+  if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(n / 1024))} KB`
+}
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
@@ -75,6 +84,7 @@ export class Host {
   readonly config: HostConfig
   readonly store: Store
   readonly system: System
+  readonly snapshots: Snapshots
   /** siteId -> the build holding that site's lock. */
   private readonly busy = new Map<string, string>()
   /** Builds still running, so the API can wait on one in tests and on shutdown. */
@@ -90,6 +100,7 @@ export class Host {
     this.config = config
     this.store = new Store(config)
     this.system = system
+    this.snapshots = new Snapshots(config, system)
     this.log = opts.log ?? ((m) => console.log(m))
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)))
   }
@@ -148,6 +159,11 @@ export class Host {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return new Map()
       throw err
     }
+  }
+
+  /** The database the site's env points at, when it is on this server's own cluster. */
+  siteDatabase(site: SiteRecord): string | null {
+    return localDatabase(this.config, this.readSiteEnv(site).get('DATABASE_URL'))
   }
 
   writeSiteEnv(site: SiteRecord, env: EnvMap): void {
@@ -234,7 +250,7 @@ export class Host {
     if (busyWith) {
       const running = this.store.getBuild(siteId, busyWith)
       if (running) return { build: toSummary(running), alreadyRunning: true }
-      throw new HostError('The site is being rolled back. Wait for that to finish, then build.', 409)
+      throw new HostError('The site is being rolled back or changed. Wait for that to finish, then build.', 409)
     }
 
     const now = this.system.now()
@@ -244,12 +260,14 @@ export class Host {
       ref: site.branch,
       state: 'queued',
       createdAt: now,
+      startedAt: null,
       finishedAt: null,
       error: null,
       live: false,
       trigger: opts.trigger ?? 'api',
       releaseDir: null,
       slot: null,
+      reachedMigrations: false,
     }
     this.store.saveBuild(siteId, build)
     this.busy.set(siteId, build.id)
@@ -259,6 +277,31 @@ export class Host {
     })
     this.running.set(build.id, job)
     return { build: toSummary(build), alreadyRunning: false }
+  }
+
+  /**
+   * Runs work that must not overlap a build, a rollback or another change to the same
+   * sites, holding each one's lock until it is done. Refused while any is busy.
+   */
+  async withSiteLock<T>(siteIds: string[], label: string, work: () => Promise<T>): Promise<T> {
+    const held = siteIds.find((id) => this.busy.has(id))
+    if (held) throw new HostError(`${held} is busy with a build or another change. Wait for it to finish, then try again.`, 409)
+    for (const id of siteIds) this.busy.set(id, label)
+    try {
+      return await work()
+    } finally {
+      for (const id of siteIds) this.busy.delete(id)
+    }
+  }
+
+  /** Whether a slot that has just been started answers its health check. */
+  async slotHealthy(site: SiteRecord, slot: SlotName, expectsDatabase: boolean): Promise<{ healthy: boolean; reason?: string }> {
+    return waitUntilHealthy(
+      this.system,
+      { port: site.ports[slot], host: site.domains[0] ?? '127.0.0.1', expectsDatabase },
+      this.config.healthTimeoutSeconds * 1000,
+      this.sleep
+    )
   }
 
   /** Resolves once the build has finished, whatever the outcome. For tests and shutdown. */
@@ -302,7 +345,7 @@ export class Host {
   }
 
   private async runBuild(site: SiteRecord, initial: BuildRecord): Promise<void> {
-    let build: BuildRecord = { ...initial, state: 'building' }
+    let build: BuildRecord = { ...initial, state: 'building', startedAt: this.system.now() }
     const save = (patch: Partial<BuildRecord>) => {
       build = { ...build, ...patch }
       this.store.saveBuild(site.id, build)
@@ -330,6 +373,18 @@ export class Host {
       step('Installing dependencies')
       await this.buildStep(site, paths, releaseDir, [this.config.npmBin, 'ci', '--include=dev', '--no-audit', '--no-fund'], line, 'Installing dependencies')
 
+      // The build runs the migrations, so this is the last moment the database is
+      // still the one the live release was written for.
+      const database = localDatabase(this.config, env.get('DATABASE_URL'))
+      if (database) {
+        step('Backing up the database')
+        const snapshot = await this.snapshots.take(site.id, database, 'build', build.id)
+        line(`Saved ${database} as it is now (${formatBytes(snapshot.sizeBytes)}), so rolling back can put it back`)
+      } else if (env.has('DATABASE_URL')) {
+        line('The database is not on this server, so it is not backed up before the build')
+      }
+
+      save({ reachedMigrations: true })
       step('Building')
       await this.buildStep(site, paths, releaseDir, [this.config.npmBin, 'run', 'build'], line, 'The build')
 
@@ -337,7 +392,8 @@ export class Host {
 
       step('Switching over')
       const slot = await this.activate(site.id, releaseDir, line, env.has('DATABASE_URL'))
-      save({ state: 'ready', finishedAt: this.system.now(), slot, live: true })
+      const liveAt = this.system.now()
+      save({ state: 'ready', finishedAt: liveAt, liveAt, slot, live: true })
       this.store.setLiveBuild(site.id, build.id)
       line('Live.')
       this.log(`[${site.id}] build ${build.id} is live in slot ${slot}`)
@@ -509,9 +565,15 @@ export class Host {
   /**
    * Puts an earlier release back live, without building anything. Defaults to the
    * newest finished build that is not live and whose release is still on disk.
+   *
+   * With `restoreDatabase`, the database goes back too, to the snapshot taken when that
+   * release stopped being live (restorePoint), and everything written since is lost.
+   * The database as it is now is snapshotted first, so the rollback can be undone
+   * the same way. If the old release then fails its health check, the database is
+   * swapped straight back and the site carries on as it was.
    */
-  async rollback(siteId: string, buildId?: string): Promise<BuildSummary> {
-    this.site(siteId)
+  async rollback(siteId: string, buildId?: string, opts: { restoreDatabase?: boolean } = {}): Promise<BuildSummary> {
+    const site = this.site(siteId)
     if (this.busy.has(siteId)) throw new HostError('A build is running for this site. Wait for it to finish, then roll back.', 409)
     const builds = this.store.listBuilds(siteId)
     const target = buildId
@@ -522,20 +584,104 @@ export class Host {
     if (target.state !== 'ready' || !target.releaseDir || !existsSync(target.releaseDir)) {
       throw new HostError('That version is no longer kept on this server', 409)
     }
+    const database = opts.restoreDatabase ? this.siteDatabase(site) : null
+    const point = opts.restoreDatabase ? this.snapshots.restorePointFor(siteId, target, database, builds) : null
+    if (opts.restoreDatabase && !point) {
+      throw new HostError('There is no copy of the database from when that version was live, so only the code can go back', 409)
+    }
 
     const lockId = `rollback-${target.id}`
     this.busy.set(siteId, lockId)
+    const line = (t: string) => this.log(`[${siteId}] rollback: ${t}`)
     try {
       const releaseDir = target.releaseDir
       const expectsDatabase = parseEnv(readFileSync(join(releaseDir, '.cactus-env'), 'utf8')).has('DATABASE_URL')
-      const slot = await this.activate(siteId, releaseDir, (t) => this.log(`[${siteId}] rollback: ${t}`), expectsDatabase)
-      this.store.saveBuild(siteId, { ...target, slot, live: true })
+      let swap: { commit: () => Promise<void>; undo: () => Promise<void> } | null = null
+      if (point && database) {
+        const before = await this.snapshots.take(siteId, database, 'rollback', target.id)
+        line(`saved ${database} as it is now as ${before.id}`)
+        swap = await this.snapshots.databases.replaceWithDump(database, point.file)
+        line(`${database} is back as it was at ${new Date(point.takenAt).toISOString()}`)
+      }
+      let slot: SlotName
+      try {
+        slot = await this.activate(siteId, releaseDir, line, expectsDatabase)
+      } catch (err) {
+        if (swap) {
+          await swap.undo()
+          line(`${database} swapped back, as the old version would not start`)
+        }
+        throw err
+      }
+      if (swap) await swap.commit()
+      const liveAt = this.system.now()
+      const restored: BuildRecord = { ...target, slot, live: true, liveAt }
+      this.store.saveBuild(siteId, restored)
       this.store.setLiveBuild(siteId, target.id)
-      this.log(`[${siteId}] rolled back to ${target.id}`)
-      return toSummary({ ...target, slot, live: true })
+      this.log(`[${siteId}] rolled back to ${target.id}${point ? ' with its database' : ''}`)
+      return toSummary(restored)
     } finally {
       this.busy.delete(siteId)
     }
+  }
+
+  /**
+   * Asks the live release to update Cactus and every module (POST
+   * /api/internal/host-update), proving who is asking with the site's own token, read
+   * from the env that release was built with. The site commits the new versions to
+   * its repo and starts the build through this service, so no lock is held here: the
+   * build it starts would otherwise be refused.
+   */
+  async requestUpdate(siteId: string): Promise<HostUpdateResponse> {
+    const site = this.site(siteId)
+    if (this.busy.has(siteId)) throw new HostError(`${siteId} is busy with a build or another change. Wait for it to finish, then try again.`, 409)
+    const live = this.store.listBuilds(siteId).find((b) => b.live)
+    if (!site.liveSlot || !live?.releaseDir || !existsSync(live.releaseDir)) {
+      throw new HostError(`${siteId} has no live version to update from. Build it first.`, 409)
+    }
+    const token = parseEnv(readFileSync(join(live.releaseDir, '.cactus-env'), 'utf8')).get('CACTUS_HOST_TOKEN')
+    if (!token) throw new HostError(`${siteId}'s live version has no CACTUS_HOST_TOKEN to be asked with`, 409)
+    const res = await this.system.local({
+      port: site.ports[site.liveSlot],
+      path: '/api/internal/host-update',
+      method: 'POST',
+      headers: {
+        Host: site.domains[0] ?? '127.0.0.1',
+        'X-Forwarded-Proto': 'https',
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'cactus-host-update/1',
+      },
+      // The site checks GitHub for every module and commits before it answers.
+      timeoutMs: 120_000,
+    })
+    let body: Partial<HostUpdateResponse> & { error?: string } = {}
+    try {
+      body = JSON.parse(res.body) as typeof body
+    } catch {
+      // An HTML 404 is a Cactus too old to have the route.
+    }
+    if (res.status === 404) {
+      throw new HostError(`${siteId} runs a Cactus too old to be updated from here. Update it once from its own admin (Settings → Updates); after that this button works.`, 409)
+    }
+    if (res.status < 200 || res.status >= 300 || body.ok !== true) {
+      throw new HostError(body.error ?? `${siteId} answered ${res.status}`, res.status === 409 || res.status === 503 ? res.status : 502)
+    }
+    this.log(`[${siteId}] update requested: ${body.upToDate ? 'already up to date' : `core ${body.core ? `${body.core.from} -> ${body.core.to}` : 'unchanged'}, ${body.updated ?? 0} module(s)`}`)
+    return body as HostUpdateResponse
+  }
+
+  /** What rolling back to each kept release with its database would restore. */
+  restorePoints(siteId: string): Map<string, SnapshotRecord> {
+    const site = this.site(siteId)
+    const database = this.siteDatabase(site)
+    const points = new Map<string, SnapshotRecord>()
+    const builds = this.store.listBuilds(siteId)
+    for (const b of builds) {
+      if (b.live || !b.releaseDir || !existsSync(b.releaseDir)) continue
+      const point = this.snapshots.restorePointFor(siteId, b, database, builds)
+      if (point) points.set(b.id, point)
+    }
+    return points
   }
 
   /** Removes releases beyond keepReleases (never the live one), and their static files. */
@@ -556,6 +702,9 @@ export class Host {
       line(`Removed old release ${b.id}`)
     }
     this.pruneStatic(siteId, builds.filter((b) => keep.has(b.id)).map((b) => b.releaseDir as string))
+    const site = this.store.getSite(siteId)
+    const all = this.store.listBuilds(siteId)
+    this.snapshots.prune(siteId, all.filter((b) => keep.has(b.id)), all, site ? this.siteDatabase(site) : null, line)
   }
 
   private pruneStatic(siteId: string, releaseDirs: string[]): void {
@@ -573,18 +722,109 @@ export class Host {
 
   // ── Domains ────────────────────────────────────────────────────────────────
 
-  async addDomain(siteId: string, name: string): Promise<DomainSummary> {
+  /** Adds a domain. The first one a site has is its primary; later ones redirect to it unless `primary` is set. */
+  async addDomain(siteId: string, name: string, opts: { primary?: boolean; tls?: { cert: string; key: string } | null } = {}): Promise<DomainSummary> {
     const site = this.site(siteId)
+    const domain = this.checkedDomain(siteId, name)
+    const domains = site.domains.includes(domain) ? site.domains : [...site.domains, domain]
+    const { [domain]: _previous, ...otherTls } = site.domainTls ?? {}
+    const domainTls = opts.tls ? { ...otherTls, [domain]: opts.tls } : opts.tls === null ? otherTls : site.domainTls
+    await this.saveDomains({ ...site, domainTls }, opts.primary ? [domain, ...domains.filter((d) => d !== domain)] : domains, site)
+    return this.domainStatus(siteId, domain)
+  }
+
+  /** Makes an attached domain the primary one: the others now redirect to it. */
+  async setPrimaryDomain(siteId: string, name: string): Promise<void> {
+    const site = this.site(siteId)
+    const domain = name.trim().toLowerCase()
+    if (!site.domains.includes(domain)) throw new HostError(`${domain} is not attached to ${siteId}`, 404)
+    await this.saveDomains(site, [domain, ...site.domains.filter((d) => d !== domain)])
+  }
+
+  /** Detaches a domain. A site always keeps one; removing the primary promotes the next. */
+  async removeDomain(siteId: string, name: string): Promise<void> {
+    const site = this.site(siteId)
+    const domain = name.trim().toLowerCase()
+    if (!site.domains.includes(domain)) throw new HostError(`${domain} is not attached to ${siteId}`, 404)
+    if (site.domains.length === 1) throw new HostError(`${domain} is the only domain ${siteId} has. Add another first, or the site would be unreachable`, 409)
+    const { [domain]: _gone, ...domainTls } = site.domainTls ?? {}
+    await this.saveDomains({ ...site, domainTls }, site.domains.filter((d) => d !== domain), site)
+  }
+
+  /** The domain, lower-cased, once it is known to be valid and not another site's. */
+  checkedDomain(siteId: string, name: string): string {
     const domain = name.trim().toLowerCase()
     if (!isValidHostname(domain)) throw new HostError(`"${name}" is not a valid domain name`, 400)
     const other = this.store.listSites().find((s) => s.id !== siteId && s.domains.includes(domain))
     if (other) throw new HostError(`${domain} already belongs to another site on this server`, 409)
-    if (!site.domains.includes(domain)) {
-      const updated = { ...site, domains: [...site.domains, domain] }
-      await this.writeRouting(updated)
-      this.store.saveSite(updated)
+    return domain
+  }
+
+  private async saveDomains(site: SiteRecord, domains: string[], before: SiteRecord = site): Promise<void> {
+    if (domains.join() === before.domains.join() && JSON.stringify(site.domainTls ?? {}) === JSON.stringify(before.domainTls ?? {})) return
+    const updated = { ...site, domains }
+    await this.writeRouting(updated)
+    this.store.saveSite(updated)
+    // SITE_URL follows the primary domain; running builds keep the old one until the next build.
+    if (domains[0] !== before.domains[0]) {
+      const env = this.readSiteEnv(updated)
+      if (env.has('SITE_URL')) {
+        env.set('SITE_URL', `https://${domains[0]}`)
+        this.writeSiteEnv(updated, env)
+      }
     }
-    return this.domainStatus(siteId, domain)
+  }
+
+  /**
+   * Changes a site's display name, branch or install repo. A new repo starts a fresh
+   * code mirror and a new deploy key (GitHub refuses one deploy key on two repos), and
+   * moves GITHUB_REPO with it when it still named the old repo. The live release keeps
+   * serving; the next build uses the new settings. Returns the new key's public half
+   * when the repo changed.
+   */
+  async editSite(siteId: string, changes: { name?: string; branch?: string; repo?: string }): Promise<{ site: SiteRecord; deployKeyPublic: string | null }> {
+    const site = this.site(siteId)
+    const name = changes.name?.trim()
+    const branch = changes.branch?.trim()
+    const repo = changes.repo?.trim()
+    if (name !== undefined && (name.length === 0 || name.length > 80)) throw new HostError('A display name is 1 to 80 characters', 400)
+    if (branch !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(branch)) throw new HostError(`"${branch}" is not a valid branch name`, 400)
+    if (repo !== undefined && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) throw new HostError('The install repo is owner/repo, as on GitHub', 400)
+    const repoChanged = Boolean(repo) && repo !== site.repo
+    if (!repoChanged) {
+      const updated = { ...site, ...(name ? { name } : {}), ...(branch ? { branch } : {}) }
+      this.store.saveSite(updated)
+      return { site: updated, deployKeyPublic: null }
+    }
+    return this.withSiteLock([siteId], `repo-${siteId}`, async () => {
+      const paths = this.store.paths(siteId)
+      // A new key beside the old one, swapped in only once it exists.
+      mkdirSync(this.config.keysDir, { recursive: true, mode: 0o700 })
+      const fresh = `${paths.deployKey}.new`
+      rmSync(fresh, { force: true })
+      rmSync(`${fresh}.pub`, { force: true })
+      await mustRun(this.system, 'Making the deploy key', 'ssh-keygen', ['-t', 'ed25519', '-N', '', '-q', '-C', `cactus-host ${siteId}`, '-f', fresh])
+      renameSync(fresh, paths.deployKey)
+      renameSync(`${fresh}.pub`, `${paths.deployKey}.pub`)
+      rmSync(paths.mirror, { recursive: true, force: true })
+      const updated: SiteRecord = { ...site, repo: repo as string, ...(name ? { name } : {}), ...(branch ? { branch } : {}) }
+      this.store.saveSite(updated)
+      const env = this.readSiteEnv(updated)
+      if (env.get('GITHUB_REPO') === site.repo) {
+        env.set('GITHUB_REPO', updated.repo)
+        this.writeSiteEnv(updated, env)
+      }
+      return { site: updated, deployKeyPublic: this.deployKeyPublic(siteId) }
+    })
+  }
+
+  /** The public half of the site's deploy key, or null when it has none. */
+  deployKeyPublic(siteId: string): string | null {
+    try {
+      return readFileSync(`${this.store.paths(siteId).deployKey}.pub`, 'utf8').trim() || null
+    } catch {
+      return null
+    }
   }
 
   /** Whether https://<domain> reaches this site on this server, by asking for the site's proof value. */

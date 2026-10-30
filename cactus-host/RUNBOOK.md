@@ -114,8 +114,11 @@ short-lived instances each opening connections. Here each site is one long-lived
 with its own small pool (two, for a few seconds, during an update), so there is nothing
 to protect it from - and `pgbouncer=true` makes Prisma spend about four round trips on
 every query. If something else on the box genuinely needs a pooler, give it one of its
-own; keep the sites pointed straight at Postgres. `DIRECT_URL` can be left unset, or set
-to the same string.
+own; keep the sites pointed straight at Postgres. Set `DIRECT_URL` to the same string:
+the schema asks for it, and migrations fail without it.
+
+`cactus-host db create shop` does all of this in one go (section 12), without the
+password ever appearing on a command line.
 
 **Google Chrome**, for PDFs (invoices, quotes and the like):
 
@@ -302,7 +305,7 @@ you switch over by changing DNS. A few things to get right:
 
 ## 9. Backups
 
-Two layers, and you want both:
+Three layers, and you want them all:
 
 - **The site's own backup** (admin → Settings → Backups) makes a file you can restore
   into any Cactus site, anywhere.
@@ -318,7 +321,14 @@ Two layers, and you want both:
   systemctl start cactus-postgres-backup   # once now, to see it work
   ```
 
-  Restore one with `pg_restore --clean --if-exists -d <db> <file>.dump`, as `postgres`.
+- **A copy just before every deploy.** A build dumps the site's database (when it is on
+  this server) after `npm ci` and before `npm run build`, which is where the migrations
+  run. A dump that fails stops the build, with the live version untouched. The copies
+  stay on this server in `/var/lib/cactus-host/snapshots/<site>/`, root only; each kept
+  release keeps the copy from when it stopped being live, plus the newest
+  `keepReleases`. They are what `rollback --with-database` puts back.
+
+  Restore a nightly one with `pg_restore --clean --if-exists -d <db> <file>.dump`, as `postgres`.
   Try it once on a scratch database before you need it in anger: a backup nobody has
   restored is a hope, not a backup.
 
@@ -334,9 +344,27 @@ cactus-host logs shop               # the newest build's log
 cactus-host build shop              # build the latest commit now
 cactus-host rollback shop           # back to the previous version, no build needed
 cactus-host rollback shop <build>   # or a particular one
+cactus-host rollback shop <build> --with-database   # and its database as it was then
 cactus-host env list shop
 journalctl -u cactus-shop-a -f      # the site's own output (or -b)
 ```
+
+A plain rollback leaves the database alone, which is right whenever the newer release's
+migrations only added things. `--with-database` also puts back the copy taken when that
+release stopped being live, and **everything written since is lost**. It saves the
+database as it is now first (so the rollback can be undone the same way), restores the
+copy into `<db>__incoming`, swaps the two names while nobody is connected, then starts
+the old release. If that release fails its health check, the names swap straight back
+and the site carries on as it was. A crash mid-swap can leave `<db>__replaced` behind:
+the next restore refuses until you have checked it and dropped it.
+
+**Updating Cactus and modules** from the Oasis Server screen asks the site itself
+(`POST /api/internal/host-update` on its live port, with its own token) to do what its
+Settings → Updates screen does with "also update modules" ticked, or Modules → Update
+all when only modules have news. It commits to the site's repo and starts the build
+through cactus-host; the build backs the database up, migrates it, and switches over
+once healthy, like any other. A site whose Cactus predates the route has to be updated
+once from its own admin first.
 
 Settings changed with `cactus-host env set` reach the site with its next build, exactly
 as on Vercel. A running version always keeps the settings it was built with, so a
@@ -354,12 +382,110 @@ Anything else you run here (a message broker, a worker) is best given its own sy
 unit with a `MemoryMax`, so it cannot take the sites down with it, and its own Linux
 user. Nothing about Cactus needs to know.
 
+## 12. Making sites and databases without psql
+
+```bash
+cactus-host db create blog --backup b2-blog:Blog/Database-Backups   # prints the connection string once
+cactus-host db list                                                 # name, owner, size, where backups go
+cactus-host db backup blog                                          # one dump now, copied to its destination
+cactus-host db destination blog b2-blog:Blog/Database-Backups       # or --none
+```
+
+`cactus-host site create` is `db create`, then `site add`, with the database already in
+the site's settings, so the first build has it and the setup wizard has nothing to paste:
+
+```bash
+cactus-host site create blog --repo you/blog-site --domain blog.example.com --backup b2-blog:Blog/Database-Backups
+```
+
+Given a Cloudflare API token, it does section 6 as well: the proxied DNS record, Full
+(strict), and the zone's origin certificate (key made on the box, saved in
+`/etc/caddy/tls/<zone>.pem` and `.key`, reused for the next site in that zone). Use a
+**scoped** token (Zone: DNS Edit, Zone: SSL and Certificates Edit), never the account's
+global key, in a root-only file named in `config.json`:
+
+```json
+"cloudflare": { "apiTokenFile": "/etc/cactus-host/cloudflare-token" }
+```
+
+Without one it prints those steps for you to do by hand. Either way, add the deploy key
+it prints, then `cactus-host build blog`.
+
+`ops/backup-postgres.sh` copies a database with its own destination there, and every
+other database to the script's argument as before.
+
+### The admin API
+
+A site that exists to run the server (and only such a site: never a public shop) can be
+given the server's admin token:
+
+```bash
+cactus-host admin grant ops      # a new token, into ops's settings as CACTUS_HOST_ADMIN_TOKEN
+cactus-host build ops            # settings reach a site with its next build
+cactus-host admin status
+cactus-host admin revoke         # the admin API then refuses everybody
+cactus-host admin audit 50       # the last 50 server-wide actions
+```
+
+The token is never printed, and granting again replaces it. It opens `/v1/admin/...`
+(every site and its builds, every database, making either) and nothing else; a site's
+own token still only ever sees that site. Every change made through it, or through
+`db`, `site create` or `admin` on the command line, is one line in
+`/var/lib/cactus-host/admin-audit.log`, with no secret in it.
+
+### Renaming a site, moving its repo
+
+```bash
+cactus-host site rename shop store   # site name everywhere: folder, units, records, logs, user cactus-store
+```
+
+The site is offline while its live version restarts (its two slots keep their ports, so
+the new unit can only start once the old one has stopped), usually under a minute. Nothing
+is rebuilt, the database keeps its name (it is found from `DATABASE_URL`), and a build
+running at the time makes it refuse. Changing a site's install repo (admin API or the
+Oasis screen) makes a new deploy key, because GitHub refuses one key on two repos: add it
+on the new repo before the next build.
+
+## 13. SSL certificates
+
+```bash
+cactus-host cert list shop                    # each domain: which certificate, whether it covers it, expiry, who renews it, Cloudflare in front?
+cactus-host cert issue shop www.example.com   # get one for a domain that has none, or one running out
+cactus-host cert issue shop www.example.com --renew   # a fresh Let's Encrypt certificate now
+```
+
+`cert issue`, and every `site create` and domain add, tries in turn: a certificate
+already in `/etc/caddy/tls` that names the domain; a Cloudflare origin certificate (with
+`config.cloudflare`, section 12); Let's Encrypt (with `config.letsEncrypt`, below).
+
+Let's Encrypt uses certbot's DNS-01 challenge with certbot's own Cloudflare credentials
+file, which cactus-host never reads. Turn it on in `/etc/cactus-host/config.json`, then
+`systemctl restart cactus-host`:
+
+```json
+"letsEncrypt": { "credentialsFile": "/etc/letsencrypt/cloudflare.ini", "email": null }
+```
+
+certbot needs the `python3-certbot-dns-cloudflare` plugin and an account on the box (any
+earlier `certbot` run makes one; otherwise set `email`). Certificates are named
+`cactus-<domain>` in certbot and copied to `/etc/caddy/tls/letsencrypt-<domain>.{pem,key}`
+(root:caddy 0640). `certbot.timer` renews them, and the deploy hook it records with each
+one (`/usr/local/bin/cactus-host cert renewed`) installs the renewal and reloads Caddy.
+`certbot renew --dry-run` proves the whole chain.
+
+A domain behind Cloudflare's proxy shows visitors Cloudflare's own edge certificate, which
+Cloudflare issues and renews; the server's certificate only secures the hop from Cloudflare.
+A Cloudflare origin certificate is trusted by Cloudflare alone, so such a domain must stay
+proxied. `cert list` says which domains are behind Cloudflare.
+
 ## Where things live
 
 | What | Where |
 | --- | --- |
 | cactus-host | `/opt/cactus-host`, config in `/etc/cactus-host/config.json` |
 | Its records, build logs, code mirrors | `/var/lib/cactus-host` (root only) |
+| SSL certificates | `/etc/caddy/tls` (origin: `<zone>.{pem,key}`; Let's Encrypt: `letsencrypt-<domain>.{pem,key}`, from `/etc/letsencrypt/live/cactus-<domain>`) |
+| Database backup destinations, admin token hash, audit log | `/var/lib/cactus-host/databases.json`, `admin.json`, `admin-audit.log` |
 | Deploy keys | `/etc/cactus-host/keys` (root only) |
 | A site's files | `/srv/cactus/<site>/` |
 | A site's settings | `/srv/cactus/<site>/env` (that site's user only) |

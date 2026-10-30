@@ -27,6 +27,8 @@ export type BuildSummary = {
   state: BuildState
   /** Epoch ms. */
   createdAt: number
+  /** When the build left the queue and began work. Absent on builds recorded before it was kept. */
+  startedAt?: number | null
   finishedAt: number | null
   /** Plain-English reason for an `error` state. */
   error: string | null
@@ -75,6 +77,141 @@ export type DomainSummary = {
 
 export type ErrorBody = { error: string }
 
+// ── The admin API ─────────────────────────────────────────────────────────────
+//
+// Under /v1/admin/, with the server's one admin token (CACTUS_HOST_ADMIN_TOKEN in
+// the env of whichever site was granted it), never a site's own token. It sees every
+// site and every database on the box, so it is held by a site that exists only to run
+// the server, never by a public-facing one.
+
+export type DatabaseSummary = {
+  name: string
+  owner: string
+  sizeBytes: number
+  /** rclone remote:path its backups are copied to, or null for local copies only. */
+  backup: string | null
+}
+
+export type AdminSiteSummary = SiteSummary & {
+  ports: { a: number; b: number }
+  liveSlot: 'a' | 'b' | null
+  /** The newest build, whatever its state. */
+  latestBuild: BuildSummary | null
+  /** When the live build went live (its finish time), or null. */
+  liveSince: number | null
+  /** The database named in the site's DATABASE_URL, or null when it has none on this box. */
+  database: string | null
+  /** Where that database's backups are copied (rclone remote:path), or null. */
+  backup: string | null
+  createdAt: number
+}
+
+/**
+ * A build in the admin API, with whether its release is still on disk to roll back to,
+ * and the copy of the database that rolling back to it with its database would restore.
+ */
+export type AdminBuildSummary = BuildSummary & {
+  kept: boolean
+  /** Null when only the code can go back: no copy from when it was live is kept. */
+  restorePoint: { takenAt: number; sizeBytes: number } | null
+}
+
+/**
+ * POST /v1/admin/sites/:id/update, which cactus-host passes on to the site itself
+ * (POST /api/internal/host-update on its live release): bring Cactus and every module
+ * up to date in one build. The build then runs, and switches over, like any other.
+ */
+export type HostUpdateResponse = {
+  ok: true
+  /** Nothing newer was found, so nothing was built. */
+  upToDate: boolean
+  /** The core version change, or null when only modules moved. */
+  core: { from: string; to: string } | null
+  /** Modules included in the build. */
+  updated: number
+  /** Modules held back, each with the reason. */
+  failed: string[]
+  /** False when the site committed the update but could not start the build itself. */
+  redeployTriggered: boolean
+}
+
+/** POST /v1/admin/sites/:id/rollback. `restoreDatabase` loses everything written since restorePoint.takenAt. */
+export type AdminRollbackRequest = { buildId: string; restoreDatabase?: boolean }
+
+/** PATCH /v1/admin/sites/:id. `backup` null or "" clears the destination. */
+export type EditSiteRequest = { name?: string; branch?: string; repo?: string; backup?: string | null }
+
+/** A new deploy key comes back when the repo changes: GitHub refuses one key on two repos. */
+export type EditSiteResponse = { site: AdminSiteSummary; deployKeyPublic: string | null }
+
+export type CertificateSummary = {
+  domain: string
+  /** Which certificate Caddy uses for it: its own, the site's, the server-wide one, or Caddy's automatic one. */
+  source: 'domain' | 'site' | 'server' | 'automatic'
+  file: string | null
+  /** Whether that certificate names the domain (directly or by wildcard). */
+  covers: boolean
+  issuer: string | null
+  /** Epoch ms. */
+  expiresAt: number | null
+  /** Why the certificate could not be read, if it could not. */
+  problem: string | null
+  /**
+   * What kind of certificate it is. A Cloudflare origin certificate is trusted only by
+   * Cloudflare's proxy: visitors see Cloudflare's own edge certificate, which Cloudflare
+   * issues and renews by itself.
+   */
+  kind: 'cloudflare-origin' | 'letsencrypt' | 'other' | 'automatic'
+  /** Who renews it: certbot (with cactus-host installing each renewal), Caddy, or nobody (it is long-lived or was put there by hand). */
+  renewedBy: 'certbot' | 'caddy' | null
+  /** True when https://<domain> answers through Cloudflare's proxy, false when it does not, null when it could not be told. */
+  cloudflareProxy: boolean | null
+}
+
+export type IssueCertificateResponse = {
+  certificate: CertificateSummary
+  /** How it was got: an existing file, a Cloudflare origin certificate, or Let's Encrypt. */
+  method: 'existing' | 'cloudflare-origin' | 'letsencrypt'
+  notes: string[]
+}
+
+/** POST /v1/admin/sites/:id/domains/:domain/certificate. `renew` replaces a good certificate too. */
+export type IssueCertificateRequest = { renew?: boolean }
+
+export type CreateDatabaseRequest = { name: string; backup?: string | null }
+
+/** The connection string appears here once; cactus-host keeps no copy of the password. */
+export type CreateDatabaseResponse = { database: DatabaseSummary; connectionString: string }
+
+export type BackupDatabaseResponse = { file: string; copiedTo: string | null }
+
+export type CreateSiteRequest = {
+  id: string
+  repo: string
+  domains: string[]
+  name?: string
+  branch?: string
+  backup?: string | null
+}
+
+export type CreateSiteResponse = {
+  site: AdminSiteSummary
+  database: string
+  /** Add on GitHub as a read-only deploy key before the first build. */
+  deployKeyPublic: string
+  /** What was done in Cloudflare, or the steps still to do by hand. */
+  cloudflare: { done: string[]; manual: string[] }
+}
+
+export type AuditEntrySummary = {
+  at: number
+  actor: 'cli' | 'admin-api'
+  action: string
+  target: string | null
+  ok: boolean
+  error: string | null
+}
+
 export function isBuildState(value: unknown): value is BuildState {
   return (
     value === 'queued' ||
@@ -91,6 +228,7 @@ export const RESERVED_ENV_KEYS: readonly string[] = [
   'CACTUS_HOST_TOKEN',
   'CACTUS_HOST_SITE_ID',
   'CACTUS_HOST_URL',
+  'CACTUS_HOST_ADMIN_TOKEN',
   'PORT',
   'NODE_ENV',
 ]
