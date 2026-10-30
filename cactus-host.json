@@ -1,0 +1,9 @@
+{
+  "$comment": "Written by Cactus: the schedule is rewritten whenever the site needs its scheduled-job dispatcher woken more or less often, so edits here are overwritten. See lib/cron/server-file.ts.",
+  "crons": [
+    {
+      "path": "/api/cron/dispatch",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
