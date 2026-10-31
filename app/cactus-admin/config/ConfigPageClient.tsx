@@ -25,6 +25,7 @@ import ScheduledJobsClient from './ScheduledJobsClient'
 import NotificationsSettingsClient from './NotificationsSettingsClient'
 import MediaServingModeCard from './MediaServingModeCard'
 import EncryptionKeyCard from './EncryptionKeyCard'
+import AutomaticBackupsCard from './AutomaticBackupsCard'
 import { MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR, canServeDirect, mediaServingMode } from '@/lib/media/serving-mode'
 import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
@@ -101,7 +102,7 @@ const GENERAL_PAGES: readonly SubTabDef[] = [
   { key: 'notifications', label: 'Notifications', anchors: [] },
   { key: 'gdpr', label: 'GDPR & Legal', anchors: ['gdpr-legal', 'gdpr-retention', 'gdpr-banner', 'gdpr-members'] },
   { key: 'schedules', label: 'Schedules', anchors: [] },
-  { key: 'backup', label: 'Backup & restore', anchors: ['general-backup', 'general-restore'] },
+  { key: 'backup', label: 'Backup & restore', anchors: ['general-backup', 'general-automatic-backup', 'general-restore'] },
   { key: 'encryption', label: 'Encryption key', anchors: ['general-encryption-key'] },
 ]
 const DANGER_PAGE: SubTabDef = { key: 'danger', label: 'Danger zone', anchors: ['general-danger'] }
@@ -1374,8 +1375,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credentials }),
       })
-      const d = (await res.json()) as { ok?: boolean; to?: string; error?: string }
-      if (!res.ok) throw new Error(d.error ?? 'Failed to send test email')
+      // Read defensively: an error page from something in front of the site (Cloudflare,
+      // a proxy) is not JSON, and Safari's parse error would hide what actually happened.
+      const d = (await res.json().catch(() => ({}))) as { ok?: boolean; to?: string; error?: string }
+      if (!res.ok) throw new Error(d.error ?? `Failed to send test email (the site answered ${res.status})`)
       setTestedEnvId(sectionId)
       setTimeout(() => setTestedEnvId(null), 5000)
     } catch (err: unknown) {
@@ -1395,8 +1398,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testEmailTo.trim() ? { to: testEmailTo.trim() } : {}),
       })
-      const d = (await res.json()) as { ok?: boolean; to?: string; error?: string }
-      if (!res.ok) throw new Error(d.error ?? 'Failed to send test email')
+      // Read defensively: an error page from something in front of the site (Cloudflare,
+      // a proxy) is not JSON, and Safari's parse error would hide what actually happened.
+      const d = (await res.json().catch(() => ({}))) as { ok?: boolean; to?: string; error?: string }
+      if (!res.ok) throw new Error(d.error ?? `Failed to send test email (the site answered ${res.status})`)
       setTestEmailSent(d.to ?? testEmailTo.trim())
     } catch (err: unknown) {
       setTestEmailError(err instanceof Error ? err.message : 'Failed to send test email')
@@ -2152,6 +2157,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </button>
             {backupExtensions}
           </div>
+
+          <AutomaticBackupsCard id="general-automatic-backup" />
 
           <div id="general-restore" className="card admin-anchor">
             <div className="card-title">Restore from a backup</div>
