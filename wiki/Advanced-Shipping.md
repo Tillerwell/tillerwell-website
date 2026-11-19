@@ -19,7 +19,8 @@ It needs the **Shop** and **Product Attributes** modules installed.
   is answered on the page the shopper is already reading. It carries a heading
   you can rename or empty, and it follows whichever basket picker style is set in
   Delivery settings. A choice made here is remembered for that product for the
-  rest of the visit, moves that product's basket line straight away if it is
+  rest of the visit (a reload or a trip away and back still adds it to the
+  basket, not just shows it), moves that product's basket line straight away if it is
   already in the basket, and otherwise rides along onto the line the next
   add-to-cart creates - including when the shopper picks a different variation on
   the way, in which case a service that variation is not offered quietly falls
@@ -196,6 +197,19 @@ are, and they are shown to shoppers the same way too: if Shop is set to
 [show prices with tax included](Shop#showing-prices-with-or-without-tax), the
 "+£4.95" on a delivery upgrade has the tax added on exactly as the item price
 beside it does. Nothing about what you charge changes - only what is printed.
+
+**Every price row carries two figures: a cost price and a sales price.** The
+sales price is what the shopper is charged, and is the only one they ever see.
+The cost price is what the service costs you - the courier or the supplier's
+rate - and it is the figure that goes on a
+[purchase order](Purchase-Orders) raised from the order, so the supplier is
+paid their rate and the difference stays with you. The row shows the margin
+between the two, in pounds and as a share of the sales price, and goes red when
+a row sells below cost. Each order line keeps the cost price it was sold at, so
+changing a cost later never rewrites what an older order buys the service back
+for. On an install that had delivery prices before this split, both figures
+started out as the old price: nothing a shopper sees moved until a sales price
+was changed.
 
 A price row says where the service is offered and what it costs there. Rows can
 apply to everything, to one supplier, one category, or one value of your
